@@ -2,7 +2,7 @@
 //
 // 凭据来源（二选一）：
 //   1) 项目根目录的 .env（复制 .env.example 后填写 JWXT_ACCOUNT / JWXT_PASSWORD）
-//   2) 命令行参数：node tools/probe_login.mjs <账号> <密码>
+//   2) 命令行参数：node tools/probe-login.mjs <账号> <密码>
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +22,7 @@ const account = process.argv[2] ?? process.env.JWXT_ACCOUNT;
 const password = process.argv[3] ?? process.env.JWXT_PASSWORD;
 if (!account || !password) {
   console.error('缺少账号或密码。请复制 .env.example 为 .env 并填写，或：');
-  console.error('  node tools/probe_login.mjs <账号> <密码>');
+  console.error('  node tools/probe-login.mjs <账号> <密码>');
   process.exit(1);
 }
 
