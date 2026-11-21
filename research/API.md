@@ -158,7 +158,12 @@
 - 移动端/APP 专用接口（如果有，路径可能是 `/app/`、`/mobile/`，本次未扫）。
 - 微信公众号扫码登录（页面二维码是静态占位，未接线）。
 
-## 6. 已知坑
+## 6. 移动端
+
+强智 App API（`/app.do?method=authUser`）在本部署未授权/已关闭，且无独立 m 站；详见 `MOBILE.md`。
+手机端可直接复用本文件里的 `/jsxsd/*` 接口。
+
+## 7. 已知坑
 
 1. 列表接口不带 `X-Requested-With: XMLHttpRequest` 会返回整页 HTML（`ggly/*` 实测）。
 2. `pyfa_query?islist=1` 必须 POST 表单，GET 只回页面。
