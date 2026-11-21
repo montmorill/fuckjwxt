@@ -15,7 +15,7 @@ if echo "$staged" | grep -qE '^(server/openapi\.mjs|openapi\.base\.json)$' \
   exit 1
 fi
 
-if ! node --no-warnings scripts/check-openapi.mjs; then
+if ! node --no-warnings scripts/openapi.mjs check; then
   echo ""
   echo "❌ openapi.json 与源码不一致。"
   echo "   运行 npm run openapi，然后 git add openapi.json"

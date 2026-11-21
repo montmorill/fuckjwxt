@@ -10,8 +10,8 @@
   "scripts": {
     "start": "node --no-warnings server/index.mjs",
     "admin": "node --no-warnings scripts/admin.mjs",
-    "openapi": "node --no-warnings scripts/gen-openapi.mjs",
-    "openapi:check": "node --no-warnings scripts/check-openapi.mjs",
+    "openapi": "node --no-warnings scripts/openapi.mjs gen",
+    "openapi:check": "node --no-warnings scripts/openapi.mjs check",
     "hooks": "git config core.hooksPath .githooks",
     "test:oauth": "node --no-warnings tests/oauth.mjs",
     "test:caldav": "node --no-warnings tests/caldav.mjs",
