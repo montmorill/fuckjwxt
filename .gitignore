@@ -4,12 +4,12 @@
 !.env.example
 
 # 抓取的页面、API 响应、Cookie、会话（含个人信息，勿提交）
-research/site/
-research/mobile/
-research/cookies.txt
-research/*.html
-research/*.js
-research/*.txt
+docs/site/
+docs/mobile/
+docs/cookies.txt
+docs/*.html
+docs/*.js
+docs/*.txt
 
 # 本地数据（SQLite 含加密凭据/令牌）
 data/

@@ -2,7 +2,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { login, request } from '../server/jwxt/login.mjs';
 
-const out = new URL('../research/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const out = new URL('../docs/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(out, { recursive: true });
 const save = (name, text) => writeFileSync(out + name, text);
 
@@ -27,4 +27,4 @@ for (let hop = 0; hop < 10; hop++) {
 
 console.log('\n最终 Cookie:', jar.toObject());
 save('cookies.json', JSON.stringify(jar.toObject(), null, 2));
-console.log('\n已保存到 research/site/');
+console.log('\n已保存到 docs/site/');

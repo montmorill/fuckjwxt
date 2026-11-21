@@ -4,9 +4,8 @@
 
 ## 文档
 
-- [`research/NOTES.md`](research/NOTES.md) —— 登录流程、`scode/sxh` 编码、`ticqzket` 实测
-- [`research/API.md`](research/API.md) —— 登录后可用接口清单、参数、返回结构
-- [`research/MOBILE.md`](research/MOBILE.md) —— 移动端 `app.do` 探测（本部署未授权）
+- [`docs/NOTES.md`](docs/NOTES.md) —— 登录流程、`scode/sxh` 编码、`ticqzket` 实测
+- [`docs/API.md`](docs/API.md) —— 登录后可用接口清单、参数、返回结构
 - [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 - [`CALDAV.md`](CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
@@ -21,7 +20,7 @@ server/     OAuth2 服务端（node:http + node:sqlite + node:crypto）
 sdk/        浏览器/Node 客户端 SDK
 scripts/    管理 CLI 与 OpenAPI 生成/校验
 tests/      端到端测试与夹具
-research/   协议笔记（不含抓包产物）
+docs/       协议笔记（不含抓包产物）
 ```
 
 ## 服务端快速开始
@@ -56,7 +55,7 @@ npm run openapi:check  # 手动校验 openapi.json 是否最新
 
 ## 安全
 
-- `.env`、`data/`（SQLite，含加密凭据和令牌哈希）、`research/site/`（含个人信息）都已 gitignore。
+- `.env`、`data/`（SQLite，含加密凭据和令牌哈希）、`docs/site/`（含个人信息）都已 gitignore。
 - 教务密码用 AES-256-GCM 加密落库，主密钥只在环境变量；服务登录密码用 scrypt；OAuth/CalDAV token 只存 SHA-256。
 - 生产环境请用 HTTPS 反向代理，并把 `ISSUER` 改为外部地址。
 - 这是研究/个人项目，自动化访问请遵守学校规定。

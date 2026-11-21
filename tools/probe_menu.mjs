@@ -2,7 +2,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { login, request } from '../server/jwxt/login.mjs';
 
-const out = new URL('../research/site/modules/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const out = new URL('../docs/site/modules/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(out, { recursive: true });
 
 const { jar, location } = await login();

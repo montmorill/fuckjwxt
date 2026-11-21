@@ -36,5 +36,5 @@ for (const [name, path] of calls) {
     console.log('head:', x.text.slice(0, 300).replace(/\s+/g, ' '));
   }
   const slug = path.split('?')[0].replace(/^\/jsxsd\//, '').replace(/[^A-Za-z0-9._-]+/g, '_');
-  writeFileSync(new URL('../research/site/api_' + slug + (isJson ? '.json' : '.html'), import.meta.url), x.text);
+  writeFileSync(new URL('../docs/site/api_' + slug + (isJson ? '.json' : '.html'), import.meta.url), x.text);
 }

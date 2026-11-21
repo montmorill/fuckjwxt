@@ -84,7 +84,7 @@
 
 ## 4. HTML 型页面（只适合整体渲染/解析，不是 JSON）
 
-`/jsxsd/module/...` 菜单里的 54 个页面全部可访问（见 `research/site/menu.json`）。数据较多、值得直接解析的：
+`/jsxsd/module/...` 菜单里的 54 个页面全部可访问（见 `docs/site/menu.json`）。数据较多、值得直接解析的：
 
 - 课表：`td[name=kbDataTd] > ul[name=kbdataUl] > li.courselists-item`
   - 课程名：`.qz-hasCourse-title`
@@ -161,8 +161,7 @@
 
 ## 6. 移动端
 
-强智 App API（`/app.do?method=authUser`）在本部署未授权/已关闭，且无独立 m 站；详见 `MOBILE.md`。
-手机端可直接复用本文件里的 `/jsxsd/*` 接口。
+强智 App API（`/app.do?method=authUser`）在本部署未授权/已关闭，且无独立 m 站；手机端可直接复用本文件里的 `/jsxsd/*` 接口。
 
 ## 7. 已知坑
 
@@ -171,7 +170,7 @@
 3. 教材订购计划的学期参数是 `xnxqid`；教材查询/考试/课表用 `xnxq01id` 或 `xnxqid`，不同模块不统一。
 4. `bzb_jsxsd` 是第二套会话；只拿 `bzb_njw` 访问 `/jsxsd/*` 会掉登录。
 5. `xszpLoad` 是 JPEG，按文本读会损坏，要用 `arrayBuffer`。
-6. 学籍类接口含身份证号、手机号、家庭住址，落盘/日志时注意脱敏；`research/site/` 已加入 `.gitignore`。
+6. 学籍类接口含身份证号、手机号、家庭住址，落盘/日志时注意脱敏；`docs/site/` 已加入 `.gitignore`。
 7. 毕业审核列表要带 `bs=list`（页面里 `data-url` 不带它，真正请求的 URL 在页面底部 JS 里）。
 8. 培养方案课程 `toPyfakclist.do` 的 `pageSize` 固定 20，翻页靠 `pageNum`，共 90 门。
 9. 登录偶尔会返回 200 而不是 302（偶发，非凭据错误）；`server/jwxt/login.mjs` 已加退避重试，遇到 `showMsg` 的凭据错误不重试。

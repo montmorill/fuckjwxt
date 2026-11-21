@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { connect } from '../server/jwxt/api.mjs';
 
-const site = new URL('../research/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const site = new URL('../docs/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const dir = site + 'modules/';
 
 // ---- collect endpoints ----
@@ -120,4 +120,4 @@ console.log(`\n===== 跳过写操作 (${writes.length}) =====`);
 for (const r of writes) console.log(`  ${r.url}`.slice(0, 200));
 
 writeFileSync(site + 'sweep.json', JSON.stringify(rows, null, 2));
-console.log('\n明细: research/site/sweep.json');
+console.log('\n明细: docs/site/sweep.json');
