@@ -1,0 +1,14 @@
+# 本地凭据与探测产物
+.env
+.env.*
+!.env.example
+
+# 抓取的页面、API 响应、Cookie、会话（含个人信息，勿提交）
+research/site/
+research/cookies.txt
+research/*.html
+research/*.js
+research/*.txt
+
+# Node
+node_modules/
