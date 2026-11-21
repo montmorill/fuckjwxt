@@ -478,8 +478,13 @@ function baseHeaders() {
 
 function send(res, status, body, headers = {}) {
   if (res.headersSent) return;
-  res.writeHead(status, { ...baseHeaders(), ...headers });
-  res.end(body);
+  const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''));
+  res.writeHead(status, {
+    ...baseHeaders(),
+    'Content-Length': buf.length,
+    ...headers,
+  });
+  res.end(buf);
 }
 
 function sendXml(res, xml) {
