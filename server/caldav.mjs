@@ -254,6 +254,8 @@ function calendarLabel(user, items) {
 }
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
+  const categories = (compact ? ['课表', item.className] : ['课表', item.className, item.name])
+    .filter(Boolean).map(icsEscape).join(',');
   const eventLines = compact
     ? [
       'BEGIN:VEVENT',
@@ -265,7 +267,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `SUMMARY:${icsEscape(item.name)}`,
       item.location ? `LOCATION:${icsEscape(item.location)}` : '',
       description ? `DESCRIPTION:${icsEscape(description)}` : '',
-      'CATEGORIES:课表',
+      `CATEGORIES:${categories}`,
       'END:VEVENT',
     ]
     : [
@@ -281,7 +283,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `COLOR:${color || COURSE_COLORS[0]}`,
       'STATUS:CONFIRMED',
       'TRANSP:OPAQUE',
-      `CATEGORIES:课表,${icsEscape(item.name)}`,
+      `CATEGORIES:${categories}`,
       'END:VEVENT',
     ].filter(Boolean);
 

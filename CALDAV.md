@@ -62,7 +62,7 @@ GET /.well-known/caldav  → 301 /caldav/
 
 ## 数据与时间
 
-- OPPO 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`；其他客户端使用 `timetable` 合集，事件写 `COLOR` 和 `CATEGORIES:课表,课程名`。
+- OPPO 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`，事件写 `CATEGORIES:课表,班级`；其他客户端使用 `timetable` 合集，事件写 `COLOR` 和 `CATEGORIES:课表,班级,科目`。
 - 默认每个课程条目生成一个 VEVENT，多周用 `RDATE` 展开。
 - 检测到 `User-Agent` 含 `OPPO`（OPPO 日历不展开 `RDATE`）时，改为每个上课日一个独立 VEVENT，同一课程不同周次使用不同 UID。
 - 两种模式的 UID、ETag 和缓存彼此独立，客户端切来切去不会互相污染。
