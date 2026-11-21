@@ -86,8 +86,9 @@ try {
 
   const principalHref = root.text.match(/<D:current-user-principal><D:href>([^<]+)<\/D:href>/)?.[1]
     || '/caldav/principals/caldav/';
-  const principal = await propfind(principalHref, 0, '<C:calendar-home-set/>');
-  ok('PROPFIND principal 返回 calendar-home-set', principal.status === 207 && principal.text.includes('/caldav/calendars/'));
+  const principal = await propfind(principalHref, 0, '<C:calendar-home-set/><D:resourcetype/>');
+  ok('PROPFIND principal 返回 calendar-home-set', principal.status === 207
+    && principal.text.includes('/caldav/calendars/') && principal.text.includes('<D:principal/>'));
 
   const homeHref = principal.text.match(/<C:calendar-home-set><D:href>([^<]+)<\/D:href>/)?.[1]
     || '/caldav/calendars/caldav/';

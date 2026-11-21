@@ -299,6 +299,7 @@ function propXml(name, ctx) {
     case 'resourcetype':
       if (ctx.kind === 'calendar') return '<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>';
       if (ctx.kind === 'event') return '<D:resourcetype/>';
+      if (ctx.kind === 'principal') return '<D:resourcetype><D:collection/><D:principal/></D:resourcetype>';
       return '<D:resourcetype><D:collection/></D:resourcetype>';
     case 'displayname':
       return `<D:displayname>${xmlEscape(ctx.displayname || '')}</D:displayname>`;
