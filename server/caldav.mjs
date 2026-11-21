@@ -265,6 +265,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `SUMMARY:${icsEscape(item.name)}`,
       item.location ? `LOCATION:${icsEscape(item.location)}` : '',
       description ? `DESCRIPTION:${icsEscape(description)}` : '',
+      'CATEGORIES:课表',
       'END:VEVENT',
     ]
     : [
@@ -280,7 +281,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `COLOR:${color || COURSE_COLORS[0]}`,
       'STATUS:CONFIRMED',
       'TRANSP:OPAQUE',
-      'CATEGORIES:课表',
+      `CATEGORIES:课表,${icsEscape(item.name)}`,
       'END:VEVENT',
     ].filter(Boolean);
 
@@ -646,15 +647,27 @@ async function handlePropfind(req, res, user, path, url) {
     case 'home':
       add(paths.home, { kind: 'home', displayname: '日历' });
       if (deep) {
-        // 每门课一个日历，客户端单次同步的数据量更小，也天然带课程颜色
-        for (const c of cal?.courses || []) {
-          add(`${paths.home}course-${c.slug}/`, {
+        if (expand) {
+          // OPPO：每门课一个日历，单次同步数据量更小
+          for (const c of cal?.courses || []) {
+            add(`${paths.home}course-${c.slug}/`, {
+              kind: 'calendar',
+              displayname: c.name,
+              description: c.name,
+              etag: c.etag,
+              lastModified: cal.lastModified,
+              color: c.color,
+            });
+          }
+        } else {
+          // 其他客户端：一个课表合集，事件级颜色/分类
+          add(paths.calendar, {
             kind: 'calendar',
-            displayname: c.name,
-            description: c.name,
-            etag: c.etag,
-            lastModified: cal.lastModified,
-            color: c.color,
+            displayname: calendarName,
+            description: calendarName,
+            etag: cal?.etag,
+            lastModified: cal?.lastModified,
+            color: '#FF9500FF',
           });
         }
       }

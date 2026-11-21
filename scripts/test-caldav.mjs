@@ -66,11 +66,12 @@ async function req(path, { method = 'GET', headers = {}, body } = {}) {
   return { status: r.status, headers: r.headers, text: await r.text() };
 }
 
-const propfind = (path, depth, props) => req(path, {
+const propfind = (path, depth, props, extraHeaders = {}) => req(path, {
   method: 'PROPFIND',
   headers: {
     Depth: String(depth),
     'Content-Type': 'application/xml; charset=utf-8',
+    ...extraHeaders,
   },
   body: `<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop>${props}</D:prop></D:propfind>`,
 });
@@ -100,11 +101,14 @@ try {
   const homeHref = principal.text.match(/<C:calendar-home-set><D:href>([^<]+)<\/D:href>/)?.[1]
     || '/caldav/calendars/caldav/';
   const home = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>');
-  ok('PROPFIND 日历首页 depth=1 列出课程日历', home.status === 207 && home.text.includes('course-'));
+  ok('PROPFIND 标准首页列出 timetable', home.status === 207 && home.text.includes('timetable/'));
 
-  const courseHref = home.text.match(/<D:href>([^<]*course-[^<]*)<\/D:href>/)?.[1];
+  const oppoHome = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>', { 'User-Agent': 'OPPO-Calendar' });
+  ok('PROPFIND OPPO 首页列出课程日历', oppoHome.status === 207 && oppoHome.text.includes('course-'));
+
+  const courseHref = oppoHome.text.match(/<D:href>([^<]*course-[^<]*)<\/D:href>/)?.[1];
   const courseCal = courseHref
-    ? await propfind(courseHref, 0, '<D:resourcetype/><D:displayname/><A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>')
+    ? await propfind(courseHref, 0, '<D:resourcetype/><D:displayname/><A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>', { 'User-Agent': 'OPPO-Calendar' })
     : { status: 0, text: '' };
   ok('课程日历带颜色', courseCal.status === 207 && courseCal.text.includes('<C:calendar/>')
     && /<A:calendar-color>#[0-9A-F]{6}<\/A:calendar-color>/.test(courseCal.text));
