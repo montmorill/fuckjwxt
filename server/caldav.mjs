@@ -93,7 +93,7 @@ export async function authenticate(req) {
     const username = idx >= 0 ? decoded.slice(0, idx) : '';
     const password = idx >= 0 ? decoded.slice(idx + 1) : '';
 
-    const user = db.getUserByUsername(username);
+    const user = db.getUserByUsername(username) || db.getUserByAccount(username);
     if (!user || user.disabled) return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
 
     // 密码可以是该用户的 CalDAV token，也可以直接是强智教务密码。
@@ -625,9 +625,9 @@ export async function handleCalDav(req, res, url) {
 
   const path = resolvePath(url);
 
-  // 只能访问自己的 principal / calendar
-  const self = auth.user.username || auth.user.account;
-  if (path.username && path.username !== self) return send404(res);
+  // 只能访问自己的 principal / calendar；路径可用 username 或学号
+  const self = new Set([auth.user.username, auth.user.account].filter(Boolean));
+  if (path.username && !self.has(path.username)) return send404(res);
 
   if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path);
   if (method === 'REPORT') return handleReport(req, res, auth.user, path);

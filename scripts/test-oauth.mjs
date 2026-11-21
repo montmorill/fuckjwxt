@@ -334,6 +334,10 @@ try {
   const bobPwRoot = await propfind('/caldav/', 'bob', 'fake');
   ok('caldav accepts jwxt password', bobPwRoot.status === 207);
 
+  const bobAccountHome = await propfind('/caldav/calendars/202600000099/', bob.body.account, 'fake', 0);
+  ok('caldav accepts account as username', bobAccountHome.status === 207
+    && bobAccountHome.text.includes('/caldav/calendars/bob/'));
+
   const primaryCd = await postJson(`/admin/users/${primary.id}/caldav-tokens`, { label: 'test-primary' }, admin);
   ok('issue primary caldav token', primaryCd.status === 200 && Boolean(primaryCd.body.token));
   primaryTokenId = primaryCd.body.id;
