@@ -57,12 +57,12 @@ const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-// 部分客户端（如 OPPO）不会还原 \, \; 和 \n，直接换成全角标点/空格，避免备注里出现反斜杠或断行。
+// 部分客户端（如 OPPO）不会还原 \, \; \n \\，直接换成全角标点/空格，避免备注里出现反斜杠或断行。
 const icsEscape = s => String(s)
   .replace(/,/g, '、')
   .replace(/;/g, '；')
   .replace(/\r?\n/g, ' ')
-  .replace(/\\/g, '\\\\');
+  .replace(/\\/g, '＼');
 
 // RFC 5545 行折叠（按 UTF-8 字节，续行以空格开头）
 function fold(line) {
@@ -247,6 +247,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
     `DTSTAMP:${stamp}`,
+    'SEQUENCE:1',
     `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
     `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
     ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
