@@ -310,6 +310,8 @@ function propXml(name, ctx) {
       return `<C:calendar-home-set><D:href>${ctx.paths.home}</D:href></C:calendar-home-set>`;
     case 'calendar-user-address-set':
       return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.username || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
+    case 'current-user-privilege-set':
+      return '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>';
     case 'supported-calendar-component-set':
       return '<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>';
     case 'getetag':
@@ -333,10 +335,10 @@ function propXml(name, ctx) {
 }
 
 const DEFAULT_PROPS = {
-  root: ['resourcetype', 'displayname', 'current-user-principal'],
-  principal: ['resourcetype', 'displayname', 'current-user-principal', 'principal-url', 'calendar-home-set', 'calendar-user-address-set'],
-  home: ['resourcetype', 'displayname', 'current-user-principal', 'calendar-home-set'],
-  calendar: ['resourcetype', 'displayname', 'supported-calendar-component-set', 'getetag', 'getcontenttype', 'calendar-description', 'owner', 'current-user-principal', 'calendar-home-set', 'supported-report-set', 'getctag'],
+  root: ['resourcetype', 'displayname', 'current-user-principal', 'current-user-privilege-set'],
+  principal: ['resourcetype', 'displayname', 'current-user-principal', 'principal-url', 'calendar-home-set', 'calendar-user-address-set', 'current-user-privilege-set'],
+  home: ['resourcetype', 'displayname', 'current-user-principal', 'calendar-home-set', 'current-user-privilege-set'],
+  calendar: ['resourcetype', 'displayname', 'supported-calendar-component-set', 'getetag', 'getcontenttype', 'calendar-description', 'owner', 'current-user-principal', 'calendar-home-set', 'supported-report-set', 'getctag', 'current-user-privilege-set'],
   event: ['getetag', 'getcontenttype', 'resourcetype', 'getlastmodified', 'displayname'],
 };
 const KNOWN_PROPS = new Set(Object.values(DEFAULT_PROPS).flat());

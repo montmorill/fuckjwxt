@@ -117,4 +117,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、principal/home/calendar 的 PROPFIND、REPORT 事件、单个事件 GET、整表 GET、ETag/304、错误密码 401。
+覆盖：OPTIONS、`/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND、REPORT 事件、单个事件 GET、整表 GET、ETag/304、错误密码 401。

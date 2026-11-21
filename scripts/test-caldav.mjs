@@ -81,6 +81,9 @@ try {
   const root = await propfind('/caldav/', 0, '<D:current-user-principal/>');
   ok('PROPFIND 根返回 current-user-principal', root.status === 207 && root.text.includes('/caldav/principals/'));
 
+  const wellKnown = await propfind('/.well-known/caldav', 0, '<D:current-user-principal/>');
+  ok('PROPFIND well-known 返回 principal', wellKnown.status === 207 && wellKnown.text.includes('/caldav/principals/'));
+
   const principalHref = root.text.match(/<D:current-user-principal><D:href>([^<]+)<\/D:href>/)?.[1]
     || '/caldav/principals/caldav/';
   const principal = await propfind(principalHref, 0, '<C:calendar-home-set/>');

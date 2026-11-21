@@ -621,9 +621,16 @@ const server = http.createServer(async (req, res) => {
 
   try {
     // CalDAV 固定入口
-    if (url.pathname === '/.well-known/caldav' && (req.method === 'GET' || req.method === 'HEAD')) {
-      res.writeHead(301, { ...baseHeaders(), Location: '/caldav/' });
-      return res.end();
+    if (url.pathname === '/.well-known/caldav') {
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        res.writeHead(301, { ...baseHeaders(), Location: new URL('/caldav/', url).href });
+        return res.end();
+      }
+      // iOS 会用 PROPFIND 探测 well-known，按根集合处理
+      const davUrl = new URL(url.href);
+      davUrl.pathname = '/caldav/';
+      await handleCalDav(req, res, davUrl);
+      return;
     }
     if (url.pathname === '/caldav' || url.pathname.startsWith('/caldav/')
         || (req.method === 'PROPFIND' && url.pathname === '/')) {
