@@ -522,7 +522,7 @@ function etagMatches(req, etag) {
   return header.split(',').map(s => s.trim().replace(/^W\//, '')).includes(etag);
 }
 
-async function handlePropfind(req, res, user, path) {
+async function handlePropfind(req, res, user, path, url) {
   if (path.kind === 'notfound') return send404(res);
   const depth = String(req.headers.depth || '0').toLowerCase();
   const deep = depth === '1' || depth === 'infinity';
@@ -546,7 +546,7 @@ async function handlePropfind(req, res, user, path) {
 
   switch (path.kind) {
     case 'root':
-      add('/caldav/', { kind: 'root', displayname: 'CalDAV' });
+      add(url.pathname === '/' ? '/' : '/caldav/', { kind: 'root', displayname: 'CalDAV' });
       if (deep) add(paths.principal, { kind: 'principal', displayname: account });
       break;
     case 'principal':
@@ -667,7 +667,7 @@ export async function handleCalDav(req, res, url) {
   // 只能访问自己的 principal / calendar
   if (path.account && path.account !== auth.user.account) return send404(res);
 
-  if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path);
+  if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path, url);
   if (method === 'REPORT') return handleReport(req, res, auth.user, path);
   if (method === 'GET' || method === 'HEAD') return handleGet(req, res, auth.user, path);
 

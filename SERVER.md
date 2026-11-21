@@ -263,5 +263,5 @@ scripts/
 ## 已验证
 
 - OAuth 端到端 **39 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
-- CalDAV **14 项**：PROPFIND（含 `/.well-known/caldav` 与日历名称）/REPORT（calendar-query、sync-collection、OPPO 独立事件）/GET、ETag/304、错误密码 401。
+- CalDAV **15 项**：PROPFIND（含 `/.well-known/caldav`、根路径与日历名称）/REPORT（calendar-query、sync-collection、OPPO 独立事件）/GET、ETag/304、错误密码 401。
 - SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

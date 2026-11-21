@@ -84,6 +84,10 @@ try {
   const root = await propfind('/caldav/', 0, '<D:current-user-principal/>');
   ok('PROPFIND 根返回 current-user-principal', root.status === 207 && root.text.includes('/caldav/principals/'));
 
+  const bareRoot = await propfind('/', 0, '<D:current-user-principal/>');
+  ok('PROPFIND / 返回根 href', bareRoot.status === 207
+    && bareRoot.text.includes('<D:href>/</D:href>') && bareRoot.text.includes('/caldav/principals/'));
+
   const wellKnown = await propfind('/.well-known/caldav', 0, '<D:current-user-principal/>');
   ok('PROPFIND well-known 返回 principal', wellKnown.status === 207 && wellKnown.text.includes('/caldav/principals/'));
 
