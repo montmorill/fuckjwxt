@@ -1,0 +1,14 @@
+{
+  "name": "jwxt-oauth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "把强智教务账号包装成受 OAuth2 保护的数据 API",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --no-warnings server/index.mjs",
+    "admin": "node --no-warnings scripts/admin.mjs"
+  }
+}

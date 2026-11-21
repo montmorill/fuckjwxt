@@ -11,5 +11,8 @@ research/*.html
 research/*.js
 research/*.txt
 
+# 本地数据（SQLite 含加密凭据/令牌）
+data/
+
 # Node
 node_modules/
