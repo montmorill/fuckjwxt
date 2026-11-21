@@ -227,7 +227,7 @@ function vcalendar(eventLineArrays, name) {
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, calendarHref, stamp }) {
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, calendarHref, stamp }) {
   const eventLines = [
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
@@ -237,7 +237,6 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, cale
     ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
     `SUMMARY:${icsEscape(item.name)}`,
     item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-    description ? `DESCRIPTION:${icsEscape(description)}` : '',
     'STATUS:CONFIRMED',
     'TRANSP:OPAQUE',
     'CATEGORIES:课表',
@@ -272,8 +271,6 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
 
-    const description = item.teacher ? `教师 ${item.teacher}` : '';
-
     if (expand) {
       // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
       for (const week of weeks) {
@@ -281,7 +278,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], description, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], calendarHref, stamp }));
       }
       continue;
     }
@@ -295,7 +292,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));

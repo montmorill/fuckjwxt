@@ -77,7 +77,7 @@ GET /.well-known/caldav  → 301 /caldav/
   }
   ```
 
-- 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件备注只保留教师，避免换行和多余字段。
+- 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件不生成备注，避免客户端换行/转义问题。
 
 ## 认证
 
