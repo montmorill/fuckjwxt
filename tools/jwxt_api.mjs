@@ -14,7 +14,18 @@ export async function connect(opts) {
   return { base: BASE, jar, get, getText, getJson };
 }
 
-const strip = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+// 常见 HTML 实体解码（按项目里实际会出现的字符集，够用且不引入依赖）
+const decodeEntities = s => s
+  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;|&apos;/gi, "'")
+  .replace(/&amp;/gi, '&');
+
+const strip = s => decodeEntities(s.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 
 // ---- 学期 ----
 export async function getSemesters(s) {
@@ -32,18 +43,23 @@ export async function getWeekRange(s, semester) {
 }
 
 // ---- 课表 ----
-function parseCourseDetail(detail) {
-  const pick = re => detail.match(re)?.[1]?.trim() ?? '';
+function parseCourseDetail(detailHtml, detailText) {
+  // 老师/时间/地点只在 abbrinfo 这个 span 里；分开取可避免 linkSpan 等文本混进来
+  const abbrHtml = detailHtml.match(/<span[^>]*qz-hasCourse-abbrinfo[^>]*>([\s\S]*?)<\/span>/i)?.[1];
+  const abbr = strip(abbrHtml ?? detailText);
+  const timeText = abbr.match(/时间[:：]\s*([^;]*)/)?.[1]?.trim() ?? '';
+  const pick = (src, label) => src.match(new RegExp(label + '[:：]\\s*([^;]*)'))?.[1]?.trim() ?? '';
   return {
-    teacher: pick(/老师[:：]([^;]*)/),
-    timeText: pick(/时间[:：]([^;]*)/),
-    weeks: pick(/时间[:：][^[]*\[?([^\]]*)\]/),
-    location: pick(/地点[:：]([^;]*)/),
-    courseCode: pick(/课程编号[:：]([^;]*)/),
-    className: pick(/班级[:：]([^;]*)/),
-    students: pick(/总人数[:：]([^;]*)/),
-    examType: pick(/考核方式[:：]([^;]*)/),
-    hours: pick(/总学时[:：]([^;]*)/),
+    teacher: pick(abbr, '老师'),
+    timeText,
+    weeks: timeText.match(/^([^\[]*?)周/)?.[1]?.trim() ?? '',
+    periods: timeText.match(/\[([^\]]*)\]/)?.[1]?.trim() ?? '',
+    location: pick(abbr, '地点'),
+    courseCode: detailText.match(/课程编号[:：]\s*([^\s;]+)/)?.[1]?.trim() ?? '',
+    className: pick(detailText, '班级'),
+    students: pick(detailText, '总人数'),
+    examType: pick(detailText, '考核方式'),
+    hours: pick(detailText, '总学时'),
   };
 }
 
@@ -59,8 +75,11 @@ export function parseTimetable(html) {
       day++;
       for (const li of td[3].matchAll(/<li[^>]*class="[^"]*courselists-item[^"]*"[\s\S]*?<\/li>/gi)) {
         const name = strip(li[0].match(/class="[^"]*qz-hasCourse-title[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1] ?? '');
-        const detail = strip(li[0].match(/class="[^"]*qz-hasCourse-abbrinfo[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? '');
-        if (name) out.push({ day, period, name, ...parseCourseDetail(detail), raw: detail });
+        // 详情分散在多个 span（abbrinfo / kchSpan / dealeSpan / fzmSpan）。
+        // rawHtml 保留原始内 HTML（含 href/src/实体等），rawText 是解码后的纯文本，解析用 rawText。
+        const detailHtml = li[0].match(/<p[^>]*class="[^"]*qz-hasCourse-detaillists[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? '';
+        const detailText = strip(detailHtml);
+        if (name) out.push({ day, period, name, ...parseCourseDetail(detailHtml, detailText), rawHtml: detailHtml.trim(), rawText: detailText });
       }
     }
   }
