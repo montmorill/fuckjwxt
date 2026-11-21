@@ -644,6 +644,12 @@ const server = http.createServer(async (req, res) => {
 
 setInterval(cleanup, 10 * 60_000).unref();
 
+server.on('clientError', (err, socket) => {
+  const head = err.rawPacket ? err.rawPacket.subarray(0, 8).toString('hex') : '';
+  console.error(`[clientError] ${err.code || err.message} head=${head}`);
+  if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+});
+
 server.listen(config.port, () => {
   console.log(`jwxt-oauth listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
