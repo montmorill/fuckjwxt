@@ -75,7 +75,6 @@ function sendHtml(res, status, html) {
 
 const safeUser = u => ({
   id: u.id,
-  displayName: u.display_name,
   account: u.account,
   baseUrl: u.base_url,
   disabled: Boolean(u.disabled),
@@ -337,7 +336,6 @@ add('POST', '/admin/users', async ({ req }) => {
   const account = String(body.account || '').trim();
   if (!account) throw new HttpError(400, 'invalid_request', 'account required');
   const password = String(body.password || '');
-  const displayName = body.displayName ? String(body.displayName).trim() : account;
   const baseUrl = body.baseUrl ? String(body.baseUrl).trim() : null;
   const servicePassword = body.servicePassword === undefined ? null : String(body.servicePassword);
   const caldavSemester = validateSemester(body.caldavSemester) ?? null;
@@ -358,7 +356,6 @@ add('POST', '/admin/users', async ({ req }) => {
   }
 
   const user = createUser({
-    displayName,
     account,
     passwordEnc: encrypt(password),
     baseUrl,
@@ -426,7 +423,6 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
   }
 
   const updated = updateUser(id, {
-    displayName: body.displayName !== undefined ? String(body.displayName).trim() : user.display_name,
     account,
     passwordEnc,
     baseUrl,

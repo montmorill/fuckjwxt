@@ -183,7 +183,7 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
 <title>授权 · ${htmlEscape(client.name)}</title><style>${pageStyle}</style></head><body>
 <div class="card">
   <h1>授权访问</h1>
-  <p class="sub"><strong>${htmlEscape(client.name)}</strong> 请求以 <strong>${htmlEscape(user.display_name || user.account)}</strong> 的身份访问：</p>
+  <p class="sub"><strong>${htmlEscape(client.name)}</strong> 请求以 <strong>${htmlEscape(user.account)}</strong> 的身份访问：</p>
   <ul class="scopes">${scopeItems}</ul>
   <form method="post" action="/oauth/authorize">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">

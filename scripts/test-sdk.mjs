@@ -45,7 +45,6 @@ try {
       process.exit(1);
     }
     primary = await post('/admin/users', {
-      displayName: 'caldav',
       account,
       password,
       servicePassword: 'test-pass',

@@ -923,10 +923,6 @@
           "id": {
             "type": "integer"
           },
-          "displayName": {
-            "type": "string",
-            "nullable": true
-          },
           "account": {
             "type": "string"
           },
@@ -965,9 +961,6 @@
           "password"
         ],
         "properties": {
-          "displayName": {
-            "type": "string"
-          },
           "account": {
             "type": "string",
             "description": "强智学号/工号"
@@ -1001,9 +994,6 @@
       "UserUpdate": {
         "type": "object",
         "properties": {
-          "displayName": {
-            "type": "string"
-          },
           "account": {
             "type": "string"
           },

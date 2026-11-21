@@ -139,7 +139,6 @@ try {
       process.exit(1);
     }
     const created = await postJson('/admin/users', {
-      displayName: 'caldav',
       account,
       password,
       servicePassword: 'test-pass',
@@ -285,7 +284,6 @@ try {
 
   // ---------- 多用户 ----------
   const bob = await postJson('/admin/users', {
-    displayName: 'Bob',
     account: '202600000099',
     password: 'fake',
     servicePassword: 'bob-pass',

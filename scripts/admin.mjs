@@ -46,7 +46,6 @@ switch (cmd) {
     const account = String(args.account || '').trim();
     const password = String(args.password || '');
     const baseUrl = args['base-url'] || null;
-    const displayName = args['display-name'] || account;
     const servicePassword = args['service-password'] || null;
     const caldavSemester = args['caldav-semester'] !== undefined
       ? (String(args['caldav-semester']).trim() || null)
@@ -60,7 +59,6 @@ switch (cmd) {
       console.log('账号密码校验通过');
     }
     const user = db.createUser({
-      displayName,
       account,
       passwordEnc: encrypt(password),
       baseUrl,
@@ -129,7 +127,6 @@ switch (cmd) {
     }
 
     const updated = db.updateUser(id, {
-      displayName: args['display-name'] !== undefined ? String(args['display-name']) : user.display_name,
       account,
       passwordEnc,
       baseUrl,
@@ -238,9 +235,9 @@ switch (cmd) {
     console.log(`用法:
   node scripts/admin.mjs gen-key
   node scripts/admin.mjs gen-token
-  node scripts/admin.mjs add-user --account <学号> --password <密码> [--service-password <密码>] [--display-name <名>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
+  node scripts/admin.mjs add-user --account <学号> --password <密码> [--service-password <密码>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
   node scripts/admin.mjs list-users
-  node scripts/admin.mjs set-user <id|学号> [--account <学号>] [--password <密码>] [--service-password <密码>] [--display-name <名>] [--caldav-semester 2026-2027-1] [--disabled true|false] [--no-verify]
+  node scripts/admin.mjs set-user <id|学号> [--account <学号>] [--password <密码>] [--service-password <密码>] [--caldav-semester 2026-2027-1] [--disabled true|false] [--no-verify]
   node scripts/admin.mjs del-user <id>
   node scripts/admin.mjs add-caldav-token <user_id> [--label <标签>]
   node scripts/admin.mjs list-caldav-tokens <user_id>

@@ -47,8 +47,7 @@ CLI：
 node scripts/admin.mjs add-user \
   --account 202600000001 \
   --password '<教务密码>' \
-  --service-password '<服务密码>' \
-  --display-name 'Alice'
+  --service-password '<服务密码>'
 ```
 
 或管理 API：
@@ -57,7 +56,7 @@ node scripts/admin.mjs add-user \
 curl -X POST http://localhost:8787/admin/users \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"account":"202600000001","password":"...","servicePassword":"...","displayName":"Alice"}'
+  -d '{"account":"202600000001","password":"...","servicePassword":"..."}'
 ```
 
 `verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
@@ -214,7 +213,7 @@ GET /openapi.json
 | 接口 | 说明 |
 |---|---|
 | `GET /admin/users` | 用户列表 |
-| `POST /admin/users` | 创建用户 `{account,password,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
+| `POST /admin/users` | 创建用户 `{account,password,servicePassword?,baseUrl?,caldavSemester?,verify?}` |
 | `PUT /admin/users/:userId` | 更新用户（账号/密码/服务密码/禁用/CalDAV 学期） |
 | `DELETE /admin/users/:userId` | 删除用户（级联删除会话/CalDAV token） |
 | `POST /admin/users/:userId/caldav-tokens` | 签发 CalDAV token（只返回一次） |

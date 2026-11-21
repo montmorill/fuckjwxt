@@ -10,7 +10,6 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  display_name TEXT,
   account TEXT NOT NULL UNIQUE,
   password_enc TEXT NOT NULL,
   base_url TEXT,
@@ -102,23 +101,22 @@ export const listUsers = () =>
       (SELECT COUNT(*) FROM caldav_tokens t WHERE t.user_id = u.id AND t.revoked_at IS NULL) AS caldav_token_count
     FROM users u ORDER BY u.id`).all();
 
-export function createUser({ displayName, account, passwordEnc, baseUrl, servicePasswordHash, caldavSemester }) {
+export function createUser({ account, passwordEnc, baseUrl, servicePasswordHash, caldavSemester }) {
   const t = now();
   const r = db.prepare(`INSERT INTO users
-      (display_name, account, password_enc, base_url, service_password_hash, caldav_semester, disabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`)
-    .run(displayName ?? account, account, passwordEnc, baseUrl ?? null, servicePasswordHash ?? null, caldavSemester ?? null, t, t);
+      (account, password_enc, base_url, service_password_hash, caldav_semester, disabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?)`)
+    .run(account, passwordEnc, baseUrl ?? null, servicePasswordHash ?? null, caldavSemester ?? null, t, t);
   return getUserById(Number(r.lastInsertRowid));
 }
 
 export function updateUser(id, fields) {
   const user = getUserById(id);
   if (!user) return null;
-  db.prepare(`UPDATE users SET display_name = ?, account = ?, password_enc = ?,
+  db.prepare(`UPDATE users SET account = ?, password_enc = ?,
       base_url = ?, service_password_hash = ?, caldav_semester = ?, disabled = ?, updated_at = ?
     WHERE id = ?`)
     .run(
-      fields.displayName ?? user.display_name,
       fields.account ?? user.account,
       fields.passwordEnc ?? user.password_enc,
       fields.baseUrl !== undefined ? fields.baseUrl : user.base_url,
