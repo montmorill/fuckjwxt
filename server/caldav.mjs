@@ -58,8 +58,13 @@ const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-// 部分客户端（如 OPPO）不会还原 \, \; \n \\，直接换成全角标点/空格，避免备注里出现反斜杠或断行。
-const icsEscape = s => String(s)
+// 普通客户端按 RFC 转义，保留英文逗号；OPPO 不还原转义，改用全角标点。
+const icsEscapeRfc = s => String(s)
+  .replace(/\\/g, '\\\\')
+  .replace(/;/g, '\\;')
+  .replace(/,/g, '\\,')
+  .replace(/\r?\n/g, '\\n');
+const icsEscapeOppo = s => String(s)
   .replace(/,/g, '、')
   .replace(/;/g, '；')
   .replace(/\r?\n/g, ' ')
@@ -233,7 +238,7 @@ function vcalendar(eventLineArrays, name, { compact = false } = {}) {
       'VERSION:2.0',
       'PRODID:-//jwxt-oauth//CN',
       'CALSCALE:GREGORIAN',
-      `X-WR-CALNAME:${icsEscape(name || CALENDAR_NAME)}`,
+      `X-WR-CALNAME:${(compact ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
       ...eventLineArrays.flat(),
@@ -254,8 +259,11 @@ function calendarLabel(user, items) {
 }
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
-  const categories = (compact ? ['课表', item.className] : ['课表', item.className, item.name])
-    .filter(Boolean).map(icsEscape).join(',');
+  const esc = compact ? icsEscapeOppo : icsEscapeRfc;
+  const categoryParts = compact
+    ? ['课表', ...String(item.className || '').split(/[,，]/).map(s => s.trim()).filter(Boolean)]
+    : ['课表', item.className, item.name].filter(Boolean);
+  const categories = categoryParts.map(esc).join(',');
   const eventLines = compact
     ? [
       'BEGIN:VEVENT',
@@ -264,9 +272,9 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'SEQUENCE:3',
       `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
       `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
-      `SUMMARY:${icsEscape(item.name)}`,
-      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-      description ? `DESCRIPTION:${icsEscape(description)}` : '',
+      `SUMMARY:${esc(item.name)}`,
+      item.location ? `LOCATION:${esc(item.location)}` : '',
+      description ? `DESCRIPTION:${esc(description)}` : '',
       `CATEGORIES:${categories}`,
       'END:VEVENT',
     ]
@@ -277,9 +285,9 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
       `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
       ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
-      `SUMMARY:${icsEscape(item.name)}`,
-      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-      description ? `DESCRIPTION:${icsEscape(description)}` : '',
+      `SUMMARY:${esc(item.name)}`,
+      item.location ? `LOCATION:${esc(item.location)}` : '',
+      description ? `DESCRIPTION:${esc(description)}` : '',
       `COLOR:${color || COURSE_COLORS[0]}`,
       'STATUS:CONFIRMED',
       'TRANSP:OPAQUE',
