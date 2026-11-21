@@ -2,6 +2,7 @@
 // 认证：Basic（users.account + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { config } from './config.mjs';
 import { hashToken, safeEqual, decrypt } from './crypto.mjs';
 import * as db from './db.mjs';
@@ -478,11 +479,18 @@ function baseHeaders() {
 
 function send(res, status, body, headers = {}) {
   if (res.headersSent) return;
-  const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''));
+  let buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''));
+  const accept = String(res.req?.headers['accept-encoding'] || '');
+  const extra = { ...headers };
+  if (buf.length > 1024 && status !== 304 && /\bgzip\b/i.test(accept)) {
+    buf = gzipSync(buf);
+    extra['Content-Encoding'] = 'gzip';
+    extra.Vary = 'Accept-Encoding';
+  }
   res.writeHead(status, {
     ...baseHeaders(),
     'Content-Length': buf.length,
-    ...headers,
+    ...extra,
   });
   res.end(buf);
 }
@@ -688,6 +696,10 @@ function handleOptions(res) {
 
 export async function handleCalDav(req, res, url) {
   const method = String(req.method || '').toUpperCase();
+
+  if (DEBUG && /OPPO/i.test(String(req.headers['user-agent'] || ''))) {
+    console.log(`[caldav] OPPO ${method} ${url.pathname} accept-encoding=${req.headers['accept-encoding'] || '-'}`);
+  }
 
   if (method === 'OPTIONS') return handleOptions(res);
 
