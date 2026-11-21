@@ -1,6 +1,6 @@
 // Full read-only sweep of every /jsxsd endpoint found in the menu + module pages.
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { connect } from './jwxt_api.mjs';
+import { connect } from '../server/jwxt/api.mjs';
 
 const site = new URL('../research/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const dir = site + 'modules/';

@@ -1,5 +1,5 @@
-import { connect, getSemesters, getWeekRange, getTimetable, getGrades, getExams, getTextbooks, getPlanCourses, getStudentInfo, getMessages, getNotices, getCalendar } from '../tools/jwxt_api.mjs';
-import { request } from '../tools/jwxt.mjs';
+import { connect, getSemesters, getWeekRange, getTimetable, getGrades, getExams, getTextbooks, getPlanCourses, getStudentInfo, getMessages, getNotices, getCalendar } from './jwxt/api.mjs';
+import { request } from './jwxt/login.mjs';
 import { config, DEFAULT_JWXT_BASE_URL } from './config.mjs';
 import { decrypt } from './crypto.mjs';
 

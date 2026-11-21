@@ -1,5 +1,5 @@
 // Call the layui-table data endpoints discovered on the pages and print their JSON shape.
-import { login, request } from './jwxt.mjs';
+import { login, request } from '../server/jwxt/login.mjs';
 import { writeFileSync } from 'node:fs';
 
 const base = 'https://jwglxt.sdust.edu.cn';

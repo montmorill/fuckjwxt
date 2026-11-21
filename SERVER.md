@@ -255,6 +255,9 @@ server/
   api.mjs           受保护的数据接口
   caldav.mjs        只读 CalDAV
   openapi.mjs       OpenAPI 路由元数据
+  jwxt/
+    login.mjs       强智登录（Cookie 罐、sess 编码、重试）
+    api.mjs         登录后的只读数据接口（课表/成绩/考试/教材等）
   index.mjs         HTTP 服务与路由
 scripts/
   admin.mjs         密钥/用户/CalDAV token/客户端管理

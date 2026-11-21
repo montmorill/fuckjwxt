@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-for (const p of [resolve(here, '../.env'), resolve(here, '.env')]) {
+for (const p of [resolve(here, '../../.env')]) {
   if (existsSync(p)) {
     try { process.loadEnvFile(p); } catch (e) { console.warn('读取 .env 失败:', p, e.message); }
     break;

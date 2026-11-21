@@ -85,7 +85,7 @@ GET {base}/app.do?method=authUser&xh=<学号>&pwd=<密码>
 
 ## 4. 移动端可用方案
 
-- **直接复用网页接口**：`tools/jwxt.mjs` + `tools/jwxt_api.mjs` 在手机浏览器/任意 UA 下都可用；
+- **直接复用网页接口**：`server/jwxt/login.mjs` + `server/jwxt/api.mjs` 在手机浏览器/任意 UA 下都可用；
   登录页本身响应式，`/jsxsd/framework/xsMainV.htmlx` 也是响应式布局。
 - 课表/成绩/考试/教材等直接走 `API.md` 里的 `/jsxsd/*`。
 - 学校统一认证（`my.sdust.edu.cn/cas`）另有移动入口：微信/QQ/钉钉/建融慧学扫码、短信验证码，

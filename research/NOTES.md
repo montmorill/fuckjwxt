@@ -183,10 +183,10 @@ const res = await fetch(BASE + '/Logon.do?method=logon', {
 
 凭据放在项目根目录 `.env`（模板见 `.env.example`，已 gitignore），脚本会自动读取；也可用命令行参数覆盖。
 
-登录后的接口清单见 **`research/API.md`**，可直接调用的客户端是 **`tools/jwxt_api.mjs`**（`node tools/jwxt_api.mjs` 会打印课表/考试/教材/执行计划摘要）。
+登录后的接口清单见 **`research/API.md`**，可直接调用的客户端是 **`server/jwxt/api.mjs`**（`node server/jwxt/api.mjs` 会打印课表/考试/教材/执行计划摘要）。
 
-- `tools/jwxt.mjs` —— 可复用的登录模块（`login()` 返回已认证的 Cookie 罐）
-- `tools/jwxt_api.mjs` —— 登录后的数据接口封装（课表/成绩/考试/教材/学籍/公告等）
+- `server/jwxt/login.mjs` —— 可复用的登录模块（`login()` 返回已认证的 Cookie 罐）
+- `server/jwxt/api.mjs` —— 登录后的数据接口封装（课表/成绩/考试/教材/学籍/公告等）
 - `tools/probe_login.mjs` —— 完整两步登录（`.env` 或 `node tools/probe_login.mjs <账号> <密码>`）
 - `tools/probe_mobile.mjs` —— 移动端 `/app.do` 探测（本部署未授权，见 `MOBILE.md`）
 - `tools/probe_edges.mjs` —— GET/POST sess、两次 sess、无 Cookie、垃圾 encoded、logonLdap、验证码接口、长输入

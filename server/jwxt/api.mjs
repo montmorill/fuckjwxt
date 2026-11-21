@@ -1,5 +1,5 @@
 // Authenticated jwglxt API client (read-only endpoints verified 2026-11-21).
-import { login, request, BASE, UA } from './jwxt.mjs';
+import { login, request, BASE, UA } from './login.mjs';
 
 const XHR = { 'X-Requested-With': 'XMLHttpRequest' };
 
@@ -211,7 +211,7 @@ export async function getPhotoBytes(s) {
   return { contentType: res.headers.get('content-type'), bytes: Buffer.from(await res.arrayBuffer()) };
 }
 
-// CLI: node tools/jwxt_api.mjs
+// CLI: node server/jwxt/api.mjs
 if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   const s = await connect();
   const semesters = await getSemesters(s);

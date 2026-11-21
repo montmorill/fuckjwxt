@@ -1,7 +1,7 @@
 # jwglxt 可用接口清单（登录后 · 学生端）
 
 探测日期 2026-11-21，账号角色：2026 级本科（软件工程）。全部为只读 GET/POST 验证。
-登录方式见 `NOTES.md`。可用客户端：`tools/jwxt_api.mjs`。
+登录方式见 `NOTES.md`。可用客户端：`server/jwxt/api.mjs`。
 
 ## 0. 通用约定
 
@@ -174,4 +174,4 @@
 6. 学籍类接口含身份证号、手机号、家庭住址，落盘/日志时注意脱敏；`research/site/` 已加入 `.gitignore`。
 7. 毕业审核列表要带 `bs=list`（页面里 `data-url` 不带它，真正请求的 URL 在页面底部 JS 里）。
 8. 培养方案课程 `toPyfakclist.do` 的 `pageSize` 固定 20，翻页靠 `pageNum`，共 90 门。
-9. 登录偶尔会返回 200 而不是 302（偶发，非凭据错误）；`tools/jwxt.mjs` 已加退避重试，遇到 `showMsg` 的凭据错误不重试。
+9. 登录偶尔会返回 200 而不是 302（偶发，非凭据错误）；`server/jwxt/login.mjs` 已加退避重试，遇到 `showMsg` 的凭据错误不重试。

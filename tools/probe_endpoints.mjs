@@ -1,5 +1,5 @@
 // Probe candidate JSON/list endpoints discovered from the module pages. Read-only GETs.
-import { login, request } from './jwxt.mjs';
+import { login, request } from '../server/jwxt/login.mjs';
 
 const base = 'https://jwglxt.sdust.edu.cn';
 const { jar, location } = await login();

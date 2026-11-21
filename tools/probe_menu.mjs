@@ -1,6 +1,6 @@
 // Enumerate the student menu and probe each page with the authenticated session (read-only GETs).
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { login, request } from './jwxt.mjs';
+import { login, request } from '../server/jwxt/login.mjs';
 
 const out = new URL('../research/site/modules/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(out, { recursive: true });

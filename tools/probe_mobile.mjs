@@ -1,7 +1,7 @@
 // 探测 jwglxt 的移动端 App API（/app.do?method=authUser）。
 // 公开资料里的用法：GET /app.do?method=authUser&xh=&pwd= 返回 token，
 // 之后请求带 header `token: <token>`。部分学校的接口未授权/已关闭。
-import { BASE, UA } from './jwxt.mjs';
+import { BASE, UA } from '../server/jwxt/login.mjs';
 
 const account = process.env.JWXT_ACCOUNT;
 const password = process.env.JWXT_PASSWORD;

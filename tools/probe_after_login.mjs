@@ -1,6 +1,6 @@
 // Log in, follow the post-login redirect chain, dump landed pages and their frames/links.
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { login, request } from './jwxt.mjs';
+import { login, request } from '../server/jwxt/login.mjs';
 
 const out = new URL('../research/site/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(out, { recursive: true });
