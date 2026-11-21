@@ -14,6 +14,7 @@
     "openapi:check": "node --no-warnings scripts/check-openapi.mjs",
     "hooks": "git config core.hooksPath .githooks",
     "test:oauth": "node --no-warnings scripts/test-oauth.mjs",
-    "test:caldav": "node --no-warnings scripts/test-caldav.mjs"
+    "test:caldav": "node --no-warnings scripts/test-caldav.mjs",
+    "test:sdk": "node --no-warnings scripts/test-sdk.mjs"
   }
 }

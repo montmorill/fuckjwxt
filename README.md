@@ -10,12 +10,14 @@
 - [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 - [`CALDAV.md`](CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
+- [`sdk/README.md`](sdk/README.md) —— 客户端 SDK：PKCE、自动刷新、数据 API 封装
 
 ## 目录
 
 ```
 tools/      可复用的教务客户端与探测脚本
 server/     OAuth2 服务端（node:http + node:sqlite + node:crypto）
+sdk/        浏览器/Node 客户端 SDK
 scripts/    管理 CLI 与端到端测试
 research/   协议笔记（不含抓包产物）
 ```
