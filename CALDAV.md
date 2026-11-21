@@ -78,6 +78,7 @@ GET /.well-known/caldav  → 301 /caldav/
   ```
 
 - 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件不生成备注，避免客户端换行/转义问题。
+- 每个事件带 `COLOR:#RRGGBB`，按课程名稳定分配颜色；是否显示取决于客户端，部分客户端只支持日历级颜色。
 
 ## 认证
 

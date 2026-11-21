@@ -23,6 +23,11 @@ const CALENDAR_TIMEZONE_LINES = [
   'END:VTIMEZONE',
 ];
 const CALENDAR_TIMEZONE_ICS = CALENDAR_TIMEZONE_LINES.join('\r\n');
+const COURSE_COLORS = [
+  '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5',
+  '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#F4511E',
+  '#6D4C41', '#546E7A',
+];
 const DEFAULT_PERIOD_TIMES = {
   '1-2': ['08:00', '09:40'],
   '3-4': ['10:00', '11:40'],
@@ -227,7 +232,7 @@ function vcalendar(eventLineArrays, name) {
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, calendarHref, stamp }) {
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, calendarHref, stamp }) {
   const eventLines = [
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
@@ -237,6 +242,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, calendarHref, sta
     ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
     `SUMMARY:${icsEscape(item.name)}`,
     item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+    `COLOR:${color || COURSE_COLORS[0]}`,
     'STATUS:CONFIRMED',
     'TRANSP:OPAQUE',
     'CATEGORIES:课表',
@@ -261,6 +267,9 @@ function buildEvents(items, start, semester, calendarHref, expand) {
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
   const seen = new Set();
+  const courseNames = [...new Set(items.map(i => i.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  const colors = new Map(courseNames.map((name, i) => [name, COURSE_COLORS[i % COURSE_COLORS.length]]));
 
   for (const item of items) {
     const weeks = parseWeeks(item.weeks);
@@ -278,7 +287,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), calendarHref, stamp }));
       }
       continue;
     }
@@ -292,7 +301,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
