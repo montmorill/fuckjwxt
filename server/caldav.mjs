@@ -329,12 +329,13 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
     const description = item.teacher ? `教师：${item.teacher}` : '';
+    const courseKey = item.courseCode || item.name;
 
     if (expand) {
       // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
       for (const week of weeks) {
         const day = dateFor(start, week, item.day);
-        const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
+        const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
         events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact: true, calendarHref, stamp }));
@@ -343,7 +344,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     }
 
     // 其他客户端使用标准 RDATE 展开，体积更小。
-    const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${item.weeks}`);
+    const hash = sha1(`${semester}|${courseKey}|${item.day}|${periodKey}|${weeks.join(',')}`);
     if (seen.has(hash)) continue;
     seen.add(hash);
     const day = dateFor(start, weeks[0], item.day);
