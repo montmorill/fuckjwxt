@@ -100,14 +100,11 @@ try {
   const homeHref = principal.text.match(/<C:calendar-home-set><D:href>([^<]+)<\/D:href>/)?.[1]
     || '/caldav/calendars/caldav/';
   const home = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>');
-  ok('PROPFIND 日历首页 depth=1 列出课程日历', home.status === 207 && home.text.includes('course-'));
+  ok('PROPFIND 日历首页 depth=1 列出 timetable', home.status === 207 && home.text.includes('timetable/'));
 
-  const courseHref = home.text.match(/<D:href>([^<]*course-[^<]*)<\/D:href>/)?.[1];
-  const courseCal = courseHref
-    ? await propfind(courseHref, 0, '<D:resourcetype/><D:displayname/><A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>')
-    : { status: 0, text: '' };
-  ok('课程日历带颜色', courseCal.status === 207 && courseCal.text.includes('<C:calendar/>')
-    && /<A:calendar-color>#[0-9A-F]{6}<\/A:calendar-color>/.test(courseCal.text));
+  const homeNames = [...home.text.matchAll(/<D:displayname>([^<]*)<\/D:displayname>/g)].map(m => m[1]);
+  const calendarName = homeNames.find(n => n.includes('课表')) || '';
+  ok('日历名称包含班级/学号', calendarName !== '课表' && calendarName.length > 2, calendarName);
 
   const calHref = homeHref.replace(/\/?$/, '/') + 'timetable/';
   const cal = await propfind(calHref, 0, '<D:resourcetype/><D:displayname/>');

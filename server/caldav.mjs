@@ -257,14 +257,11 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'BEGIN:VEVENT',
       `UID:${hash}`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+      `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
+      `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
       `SUMMARY:${icsEscape(item.name)}`,
-      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-      description ? `DESCRIPTION:${icsEscape(description)}` : '',
-      `COLOR:${color || COURSE_COLORS[0]}`,
       'END:VEVENT',
-    ].filter(Boolean)
+    ]
     : [
       'BEGIN:VEVENT',
       `UID:${hash}@jwxt-oauth`,
@@ -292,7 +289,6 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
     ics,
     eventLines,
     start: localStamp(day.y, day.m, day.d, sh, sm),
-    color: color || COURSE_COLORS[0],
   };
 }
 
@@ -343,28 +339,6 @@ function buildEvents(items, start, semester, calendarHref, expand) {
   return events;
 }
 
-function buildCourses(events, homeHref) {
-  const groups = new Map();
-  for (const e of events) {
-    if (!groups.has(e.summary)) groups.set(e.summary, []);
-    groups.get(e.summary).push(e);
-  }
-  return [...groups.entries()].map(([name, list]) => {
-    const slug = sha1(name).slice(0, 12);
-    const prefix = `${homeHref}course-${slug}/`;
-    const courseEvents = list.map(e => ({ ...e, href: `${prefix}${e.hash}.ics` }));
-    const ics = vcalendar(courseEvents.map(e => e.eventLines), name);
-    return {
-      name,
-      slug,
-      color: list[0].color || COURSE_COLORS[0],
-      events: courseEvents,
-      ics,
-      etag: `"${sha256(ics).slice(0, 32)}"`,
-    };
-  });
-}
-
 async function buildCalendar(user, expand) {
   const semesters = await jwxt.semesters(user);
   const semester = user.caldav_semester
@@ -377,12 +351,11 @@ async function buildCalendar(user, expand) {
   const paths = pathsFor(user);
   const { className, calendarName } = calendarLabel(user, items);
   const events = buildEvents(items, start, semester, paths.calendar, expand);
-  const courses = buildCourses(events, paths.home);
   const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
 
-  return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
+  return { semester, start, events, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
 async function calendarData(user, expand = false) {
@@ -438,7 +411,7 @@ function propXml(name, ctx) {
     case 'sync-token':
       return ctx.etag ? `<D:sync-token>${xmlEscape(ctx.etag)}</D:sync-token>` : '';
     case 'calendar-color':
-      return `<A:calendar-color>${ctx.color || '#FF9500FF'}</A:calendar-color>`;
+      return '<A:calendar-color>#FF9500FF</A:calendar-color>';
     case 'calendar-order':
       return '<A:calendar-order>1</A:calendar-order>';
     case 'calendar-timezone':
@@ -569,16 +542,8 @@ function resolvePath(url) {
     if (parts.length === 2) return { kind: 'home', account };
     if (parts.length === 3 && parts[2] === 'timetable') return { kind: 'calendar', account };
     if (parts.length === 3 && parts[2] === 'timetable.ics') return { kind: 'feed', account };
-    if (parts.length === 3 && parts[2].startsWith('course-') && parts[2].endsWith('.ics')) {
-      return { kind: 'feed', account, course: parts[2].slice(7, -4) };
-    }
-    if (parts.length === 3 && parts[2].startsWith('course-')) {
-      return { kind: 'calendar', account, course: parts[2].slice(7) };
-    }
-    if (parts.length === 4 && parts[3].endsWith('.ics')) {
-      const hash = parts[3].slice(0, -4);
-      if (parts[2] === 'timetable') return { kind: 'event', account, hash };
-      if (parts[2].startsWith('course-')) return { kind: 'event', account, course: parts[2].slice(7), hash };
+    if (parts.length === 4 && parts[2] === 'timetable' && parts[3].endsWith('.ics')) {
+      return { kind: 'event', account, hash: parts[3].slice(0, -4) };
     }
   }
   return { kind: 'notfound' };
@@ -607,11 +572,6 @@ async function handlePropfind(req, res, user, path, url) {
     cal = await calendarData(user, expand);
   }
   const calendarName = cal?.calendarName || CALENDAR_NAME;
-  const course = path.course ? cal?.courses.find(c => c.slug === path.course) : null;
-  const calEvents = course ? course.events : (cal?.events || []);
-  const calEtag = course ? course.etag : cal?.etag;
-  const calDisplayName = course ? course.name : calendarName;
-  const calColor = course ? course.color : '#FF9500FF';
 
   const responses = [];
   const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, account }, requested)));
@@ -628,37 +588,31 @@ async function handlePropfind(req, res, user, path, url) {
     case 'home':
       add(paths.home, { kind: 'home', displayname: '日历' });
       if (deep) {
-        // 每门课一个日历，客户端单次同步的数据量更小，也天然带课程颜色
-        for (const c of cal?.courses || []) {
-          add(`${paths.home}course-${c.slug}/`, {
-            kind: 'calendar',
-            displayname: c.name,
-            description: c.name,
-            etag: c.etag,
-            lastModified: cal.lastModified,
-            color: c.color,
-          });
-        }
+        // 首次发现需要生成课表，之后走缓存
+        add(paths.calendar, {
+          kind: 'calendar',
+          displayname: calendarName,
+          description: calendarName,
+          etag: cal?.etag,
+          lastModified: cal?.lastModified,
+        });
       }
       break;
     case 'calendar':
-    case 'feed': {
-      if (path.course && !course) return send404(res);
-      add(path.course ? `${paths.home}course-${course.slug}/` : paths.calendar, {
+    case 'feed':
+      add(paths.calendar, {
         kind: 'calendar',
-        displayname: calDisplayName,
-        description: calDisplayName,
-        etag: calEtag,
+        displayname: cal.calendarName,
+        description: cal.calendarName,
+        etag: cal.etag,
         lastModified: cal.lastModified,
-        color: calColor,
       });
       if (deep) {
-        for (const e of calEvents) add(e.href, { kind: 'event', displayname: e.summary, etag: e.etag, lastModified: cal.lastModified });
+        for (const e of cal.events) add(e.href, { kind: 'event', displayname: e.summary, etag: e.etag, lastModified: cal.lastModified });
       }
       break;
-    }
     case 'event': {
-      const e = calEvents.find(x => x.hash === path.hash);
+      const e = cal.events.find(x => x.hash === path.hash);
       if (!e) return send404(res);
       add(e.href, { kind: 'event', displayname: e.summary, etag: e.etag, lastModified: cal.lastModified });
       break;
@@ -676,10 +630,7 @@ async function handleReport(req, res, user, path) {
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
   const cal = await calendarData(user, expandEventsFor(req));
-  const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
-  if (path.course && !course) return send404(res);
-  const events = course ? course.events : cal.events;
-  const token = course ? course.etag : cal.etag;
+  let events = cal.events;
 
   const wants = [];
   if (/getetag/i.test(body)) wants.push('getetag');
@@ -701,7 +652,7 @@ async function handleReport(req, res, user, path) {
   const notFoundXml = href => `<D:response><D:href>${xmlEscape(href)}</D:href><D:status>HTTP/1.1 404 Not Found</D:status></D:response>`;
 
   if (/sync-collection/i.test(body)) {
-    return sendXml(res, multistatusWithToken(events.map(eventXml), token));
+    return sendXml(res, multistatusWithToken(events.map(eventXml), cal.etag));
   }
 
   if (/calendar-multiget/i.test(body)) {
@@ -711,7 +662,7 @@ async function handleReport(req, res, user, path) {
     };
     const wanted = [...new Set([...body.matchAll(/<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/gi)].map(m => norm(m[1].trim())))];
     if (wanted.length) {
-      const byHref = new Map(events.map(e => [norm(e.href), e]));
+      const byHref = new Map(cal.events.map(e => [norm(e.href), e]));
       return sendXml(res, multistatus(wanted.map(href => byHref.has(href) ? eventXml(byHref.get(href)) : notFoundXml(href))));
     }
   }
@@ -721,20 +672,17 @@ async function handleReport(req, res, user, path) {
 
 async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
-  const cal = await calendarData(user, expandEventsFor(req));
-  const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
-  if (path.course && !course) return send404(res);
+  const expand = expandEventsFor(req);
 
   if (path.kind === 'calendar' || path.kind === 'feed') {
-    const ics = course ? course.ics : cal.fullIcs;
-    const etag = course ? course.etag : cal.etag;
-    if (etagMatches(req, etag)) return sendNotModified(res, etag);
-    return sendIcs(res, ics, etag, cal.lastModified, head);
+    const cal = await calendarData(user, expand);
+    if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
+    return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
   }
 
   if (path.kind === 'event') {
-    const events = course ? course.events : cal.events;
-    const e = events.find(x => x.hash === path.hash);
+    const cal = await calendarData(user, expand);
+    const e = cal.events.find(x => x.hash === path.hash);
     if (!e) return send404(res);
     if (etagMatches(req, e.etag)) return sendNotModified(res, e.etag);
     return sendIcs(res, e.ics, e.etag, cal.lastModified, head);
