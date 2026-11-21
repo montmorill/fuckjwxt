@@ -257,6 +257,8 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'BEGIN:VEVENT',
       `UID:${hash}`,
       `DTSTAMP:${stamp}`,
+      'SEQUENCE:2',
+      `LAST-MODIFIED:${stamp}`,
       `DTSTART:${localStamp(day.y, day.m, day.d, sh, sm)}`,
       `DTEND:${localStamp(day.y, day.m, day.d, eh, em)}`,
       `SUMMARY:${icsEscape(item.name)}`,
