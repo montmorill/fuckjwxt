@@ -37,7 +37,7 @@ npm start
 
 - 服务端**不再从 `.env` 导入用户**；用户必须通过 CLI 或 `POST /admin/users` 创建。
 - 打开 `http://localhost:8787/login`，用用户自己的用户名 + 服务密码登录。
-- **不兼容旧版单用户数据库**：升级请删除 `data/jwxt-oauth.db`。
+- 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 
 ### 添加更多用户
 

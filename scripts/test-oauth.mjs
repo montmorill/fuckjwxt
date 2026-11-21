@@ -148,12 +148,7 @@ try {
     ok('create primary user', created.status === 200 && Boolean(created.body.id), created.body.username);
     primary = created.body;
   } else {
-    const setPass = await putJson(`/admin/users/${primary.id}`, {
-      servicePassword: 'test-pass',
-      disabled: false,
-      ...(process.env.JWXT_PASSWORD ? { password: process.env.JWXT_PASSWORD } : {}),
-      verify: false,
-    }, admin);
+    const setPass = await putJson(`/admin/users/${primary.id}`, { servicePassword: 'test-pass', disabled: false }, admin);
     ok('set service password', setPass.status === 200 && setPass.body.hasServicePassword === true);
   }
   ok('primary has username', Boolean(primary.username), primary.username);
@@ -336,14 +331,12 @@ try {
   ok('issue bob caldav token', bobCd.status === 200 && Boolean(bobCd.body.token));
   bobTokenId = bobCd.body.id;
 
+  const bobPwRoot = await propfind('/caldav/', 'bob', 'fake');
+  ok('caldav accepts jwxt password', bobPwRoot.status === 207);
+
   const primaryCd = await postJson(`/admin/users/${primary.id}/caldav-tokens`, { label: 'test-primary' }, admin);
   ok('issue primary caldav token', primaryCd.status === 200 && Boolean(primaryCd.body.token));
   primaryTokenId = primaryCd.body.id;
-
-  if (process.env.JWXT_PASSWORD) {
-    const pwRoot = await propfind('/caldav/', primary.username, process.env.JWXT_PASSWORD);
-    ok('caldav accepts jwxt password', pwRoot.status === 207);
-  }
 
   const bobRoot = await propfind('/caldav/', 'bob', bobCd.body.token);
   ok('bob caldav discovery', bobRoot.status === 207 && bobRoot.text.includes('/caldav/principals/bob/'));

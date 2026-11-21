@@ -1,6 +1,6 @@
 import { connect, getSemesters, getWeekRange, getTimetable, getGrades, getExams, getTextbooks, getPlanCourses, getStudentInfo, getMessages, getNotices, getCalendar } from '../tools/jwxt_api.mjs';
 import { request } from '../tools/jwxt.mjs';
-import { config } from './config.mjs';
+import { config, DEFAULT_JWXT_BASE_URL } from './config.mjs';
 import { decrypt } from './crypto.mjs';
 
 const sessions = new Map();   // userId -> { session, expiresAt, verifiedAt }
@@ -24,7 +24,7 @@ async function loginUser(user) {
   return connect({
     account: user.account,
     password,
-    baseUrl: user.base_url || config.jwxtBaseUrl,
+    baseUrl: user.base_url || DEFAULT_JWXT_BASE_URL,
   });
 }
 
@@ -71,7 +71,7 @@ export async function withSession(user, fn) {
 }
 
 export async function verifyCredentials({ account, password, baseUrl }) {
-  await connect({ account, password, baseUrl: baseUrl || config.jwxtBaseUrl });
+  await connect({ account, password, baseUrl: baseUrl || DEFAULT_JWXT_BASE_URL });
   return true;
 }
 

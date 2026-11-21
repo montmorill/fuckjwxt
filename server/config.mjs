@@ -34,13 +34,15 @@ const issuer = (process.env.ISSUER || `http://localhost:${port}`).replace(/\/+$/
 const dbPath = resolve(ROOT, process.env.DB_PATH || 'data/jwxt-oauth.db');
 mkdirSync(dirname(dbPath), { recursive: true });
 
+// 多用户模式下每个用户可单独设置 baseUrl；这里只是未设置时的默认值。
+export const DEFAULT_JWXT_BASE_URL = 'https://jwglxt.sdust.edu.cn';
+
 export const config = {
   port,
   issuer,
   dbPath,
   masterKey,
   adminToken,
-  jwxtBaseUrl: (process.env.JWXT_BASE_URL || 'https://jwglxt.sdust.edu.cn').replace(/\/+$/, ''),
   corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
   accessTtl: Number(process.env.ACCESS_TOKEN_TTL || 3600),          // 秒
   refreshTtl: Number(process.env.REFRESH_TOKEN_TTL || 2592000),     // 秒，30 天

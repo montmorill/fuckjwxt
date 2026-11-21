@@ -38,7 +38,7 @@ npm start
 - 服务端不再从 `.env` 导入用户；所有用户通过 CLI 或 `POST /admin/users` 创建。
 - 打开 `http://localhost:8787/login`，用用户自己的用户名 + 服务密码登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
-- 不兼容旧版单用户数据库；升级请删除 `data/jwxt-oauth.db`。
+- 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 
 详细用法见 [`SERVER.md`](SERVER.md) 和 [`CALDAV.md`](CALDAV.md)。
 
