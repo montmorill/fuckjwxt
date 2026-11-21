@@ -1,6 +1,7 @@
 // 只读 CalDAV：把课表转成 VEVENT，支持 PROPFIND / REPORT / GET。
 // 认证：Basic（users.username + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { config } from './config.mjs';
 import { hashToken, safeEqual } from './crypto.mjs';
 import * as db from './db.mjs';
@@ -8,6 +9,7 @@ import { authenticateBearer } from './oauth.mjs';
 import { jwxt } from './jwxt-service.mjs';
 
 const CALENDAR_NAME = '课表';
+const CALENDAR_TIMEZONE = 'Asia/Shanghai';
 const DEFAULT_PERIOD_TIMES = {
   '1-2': ['08:00', '09:40'],
   '3-4': ['10:00', '11:40'],
@@ -123,12 +125,25 @@ function parsePeriodKey(periods) {
   return one ? `${Number(one[1])}-${Number(one[1])}` : '';
 }
 
+let periodTimesCache = null;
+
+// 作息表固定从 config/period-times.json 读；缺失或格式不对的键回退到内置默认值。
 function periodTimes() {
+  if (periodTimesCache) return periodTimesCache;
   const map = { ...DEFAULT_PERIOD_TIMES };
-  for (const part of config.caldavPeriodTimes.split(';')) {
-    const m = part.trim().match(/^(\d+-\d+)=(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
-    if (m) map[m[1]] = [m[2], m[3]];
+  try {
+    const raw = JSON.parse(readFileSync(new URL('../config/period-times.json', import.meta.url), 'utf8'));
+    for (const [key, value] of Object.entries(raw)) {
+      if (!/^\d+-\d+$/.test(key) || !Array.isArray(value) || value.length !== 2) continue;
+      const [start, end] = value.map(String);
+      if (/^\d{1,2}:\d{2}$/.test(start) && /^\d{1,2}:\d{2}$/.test(end)) map[key] = [start, end];
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') {
+      console.warn(`[caldav] config/period-times.json 读取失败，使用默认作息: ${e.message}`);
+    }
   }
+  periodTimesCache = map;
   return map;
 }
 
@@ -138,13 +153,13 @@ function dateFor(start, week, day) {
   return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
 }
 
-// 本地时间（默认 Asia/Shanghai，+08:00）转 UTC 的 iCalendar 时间戳
+// 本地时间（固定 Asia/Shanghai，+08:00）转 UTC 的 iCalendar 时间戳
 function utcStamp(y, m, d, hh = '00', mm = '00') {
   const dt = new Date(Date.UTC(y, m - 1, d, Number(hh) - 8, Number(mm)));
   return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}${pad(dt.getUTCSeconds())}Z`;
 }
 
-function parseSemesterStart(html, semester, fallback) {
+function parseSemesterStart(html, semester) {
   const rows = [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map(m => m[1]);
   const row = rows.find(r => r.includes('第1周'));
   if (row) {
@@ -163,11 +178,7 @@ function parseSemesterStart(html, semester, fallback) {
       }
     }
   }
-  if (fallback && /^\d{4}-\d{2}-\d{2}$/.test(fallback)) {
-    const [y, m, d] = fallback.split('-').map(Number);
-    return { y, m, d };
-  }
-  throw new Error(`无法解析 ${semester} 的开学日期，请设置 CALDAV_SEMESTER_START=YYYY-MM-DD`);
+  throw new Error(`无法从教学周历解析 ${semester} 的开学日期`);
 }
 
 // ---------- ICS ----------
@@ -178,7 +189,7 @@ function vcalendar(eventLineArrays, name) {
     'PRODID:-//jwxt-oauth//CN',
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${icsEscape(name || CALENDAR_NAME)}`,
-    `X-WR-TIMEZONE:${config.caldavTimezone}`,
+    `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
     ...eventLineArrays.flat(),
     'END:VCALENDAR',
   ];
@@ -249,15 +260,15 @@ function buildEvents(items, start, semester, calendarHref) {
   return events;
 }
 
-async function buildCalendar(user, semesterOverride) {
+async function buildCalendar(user) {
   const semesters = await jwxt.semesters(user);
-  const semester = semesterOverride || config.caldavSemester
+  const semester = user.caldav_semester
     || semesters.find(s => s.selected)?.value || semesters[0]?.value;
   if (!semester) throw new Error('没有可用学期');
 
   const items = await jwxt.timetable(user, { semester });
   const html = await jwxt.calendar(user, semester);
-  const start = parseSemesterStart(html, semester, config.caldavSemesterStart);
+  const start = parseSemesterStart(html, semester);
   const paths = pathsFor(user);
   const events = buildEvents(items, start, semester, paths.calendar);
   const fullIcs = vcalendar(events.map(e => e.eventLines), CALENDAR_NAME);
@@ -267,11 +278,11 @@ async function buildCalendar(user, semesterOverride) {
   return { semester, start, events, fullIcs, etag, lastModified, paths };
 }
 
-async function calendarData(user, semesterOverride) {
-  const key = `${user.id}:${semesterOverride || config.caldavSemester || 'current'}`;
+async function calendarData(user) {
+  const key = `${user.id}:${user.caldav_semester || 'current'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
-  const data = await buildCalendar(user, semesterOverride);
+  const data = await buildCalendar(user);
   cache.set(key, { at: Date.now(), data });
   return data;
 }

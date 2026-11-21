@@ -53,10 +53,7 @@ export const config = {
   cookieSecure: issuer.startsWith('https://'),
 
   // CalDAV（只读课表）
-  caldavTimezone: process.env.CALDAV_TIMEZONE || 'Asia/Shanghai',
-  caldavSemester: process.env.CALDAV_SEMESTER || '',
-  caldavSemesterStart: process.env.CALDAV_SEMESTER_START || '',
-  caldavPeriodTimes: process.env.CALDAV_PERIOD_TIMES || '',
+  // 学期/开学日期/作息不再走 env：学期按用户，开学日期从教学周历解析，作息在 config/period-times.json
   caldavCacheMs: Number(process.env.CALDAV_CACHE_MS || 300000),     // 5 分钟
 };
 

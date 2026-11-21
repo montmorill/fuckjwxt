@@ -291,9 +291,11 @@ try {
     account: '202600000099',
     password: 'fake',
     servicePassword: 'bob-pass',
+    caldavSemester: '2026-2027-1',
     verify: false,
   }, admin);
   ok('create second user', bob.status === 200 && Boolean(bob.body.id), bob.body.username);
+  ok('user caldav semester', bob.body.caldavSemester === '2026-2027-1', bob.body.caldavSemester);
   bobId = bob.body.id;
 
   const bobJar = makeJar();

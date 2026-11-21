@@ -63,6 +63,8 @@ curl -X POST http://localhost:8787/admin/users \
 
 `verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
 
+`caldavSemester` 可选，格式如 `2026-2027-1`；不设置时 CalDAV 使用当前学期。
+
 ### 给用户签发 CalDAV token
 
 ```bash
@@ -213,8 +215,8 @@ GET /openapi.json
 | 接口 | 说明 |
 |---|---|
 | `GET /admin/users` | 用户列表 |
-| `POST /admin/users` | 创建用户 `{username,account,password,servicePassword?,displayName?,baseUrl?,verify?}` |
-| `PUT /admin/users/:userId` | 更新用户（账号/密码/服务密码/禁用） |
+| `POST /admin/users` | 创建用户 `{username,account,password,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
+| `PUT /admin/users/:userId` | 更新用户（账号/密码/服务密码/禁用/CalDAV 学期） |
 | `DELETE /admin/users/:userId` | 删除用户（级联删除会话/CalDAV token） |
 | `POST /admin/users/:userId/caldav-tokens` | 签发 CalDAV token（只返回一次） |
 | `GET /admin/users/:userId/caldav-tokens` | token 列表 |
@@ -262,6 +264,6 @@ scripts/
 
 ## 已验证
 
-- OAuth 端到端 **36 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离等。
+- OAuth 端到端 **37 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离等。
 - CalDAV **10 项**：PROPFIND/REPORT/GET、ETag/304、错误密码 401。
 - SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

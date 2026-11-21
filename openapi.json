@@ -946,6 +946,11 @@
           "caldavTokenCount": {
             "type": "integer"
           },
+          "caldavSemester": {
+            "type": "string",
+            "nullable": true,
+            "description": "CalDAV 固定学期，如 2026-2027-1；null 表示跟随当前学期"
+          },
           "createdAt": {
             "type": "integer",
             "description": "Unix 秒"
@@ -989,6 +994,11 @@
             "format": "password",
             "description": "服务登录密码，至少 8 位；省略则不能登录 OAuth 授权页"
           },
+          "caldavSemester": {
+            "type": "string",
+            "nullable": true,
+            "description": "CalDAV 固定学期，如 2026-2027-1；省略表示跟随当前学期"
+          },
           "verify": {
             "type": "boolean",
             "default": true,
@@ -1021,6 +1031,11 @@
             "format": "password",
             "nullable": true,
             "description": "传空字符串清除"
+          },
+          "caldavSemester": {
+            "type": "string",
+            "nullable": true,
+            "description": "CalDAV 固定学期，如 2026-2027-1；传空字符串清除"
           },
           "disabled": {
             "type": "boolean"

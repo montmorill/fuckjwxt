@@ -82,6 +82,7 @@ const safeUser = u => ({
   disabled: Boolean(u.disabled),
   hasServicePassword: Boolean(u.service_password_hash),
   caldavTokenCount: u.caldav_token_count,
+  caldavSemester: u.caldav_semester || null,
   createdAt: u.created_at,
   updatedAt: u.updated_at,
 });
@@ -323,6 +324,17 @@ const validateUsername = value => {
   return username;
 };
 
+const SEMESTER_RE = /^\d{4}-\d{4}-[12]$/;
+const validateSemester = value => {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const semester = String(value).trim();
+  if (!SEMESTER_RE.test(semester)) {
+    throw new HttpError(400, 'invalid_request', 'caldavSemester must look like 2026-2027-1');
+  }
+  return semester;
+};
+
 add('GET', '/admin/users', async ({ req }) => {
   requireAdmin(req);
   return listUsers().map(safeUser);
@@ -338,6 +350,7 @@ add('POST', '/admin/users', async ({ req }) => {
   const displayName = body.displayName ? String(body.displayName).trim() : username;
   const baseUrl = body.baseUrl ? String(body.baseUrl).trim() : null;
   const servicePassword = body.servicePassword === undefined ? null : String(body.servicePassword);
+  const caldavSemester = validateSemester(body.caldavSemester) ?? null;
 
   if (!account) throw new HttpError(400, 'invalid_request', 'account required');
   if (!password) throw new HttpError(400, 'invalid_request', 'password required');
@@ -363,6 +376,7 @@ add('POST', '/admin/users', async ({ req }) => {
     passwordEnc: encrypt(password),
     baseUrl,
     servicePasswordHash: servicePassword ? hashPassword(servicePassword) : null,
+    caldavSemester,
   });
   return safeUser(user);
 });
@@ -421,6 +435,7 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
   }
 
   const disabled = body.disabled !== undefined ? Boolean(body.disabled) : Boolean(user.disabled);
+  const caldavSemester = validateSemester(body.caldavSemester);
 
   if (body.verify !== false && passwordPlain !== null) {
     try {
@@ -437,6 +452,7 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
     passwordEnc,
     baseUrl,
     servicePasswordHash,
+    caldavSemester,
     disabled,
   });
 
