@@ -247,7 +247,6 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
     `DTSTAMP:${stamp}`,
-    'SEQUENCE:1',
     `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
     `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
     ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
@@ -291,7 +290,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const [startTime, endTime] = times[periodKey] || times['1-2'];
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
-    const description = item.teacher ? `教师 ${item.teacher}` : '';
+    const description = item.teacher ? `教师：${item.teacher}` : '';
 
     if (expand) {
       // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。

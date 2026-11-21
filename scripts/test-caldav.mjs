@@ -153,8 +153,7 @@ try {
   const etag = feed.headers.get('etag') || '';
   ok('GET 日历集合（.ics）', feed.status === 200 && /text\/calendar/i.test(feed.headers.get('content-type') || '')
     && feed.text.includes('BEGIN:VCALENDAR') && feed.text.includes('DTSTART;TZID=Asia/Shanghai:')
-    && feed.text.includes('DESCRIPTION:教师 ')
-    && feed.text.includes('SEQUENCE:1')
+    && feed.text.includes('DESCRIPTION:教师：')
     && !/\\[,;n\\]/.test(feed.text)
     && /COLOR:#[0-9A-F]{6}/.test(feed.text)
     && !/DTSTART:\d{8}T\d{6}Z/.test(feed.text) && Boolean(etag), `etag=${etag}`);
