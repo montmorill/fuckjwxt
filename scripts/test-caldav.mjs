@@ -178,6 +178,8 @@ try {
     && feed.text.includes('BEGIN:VCALENDAR') && feed.text.includes('DTSTART;TZID=Asia/Shanghai:')
     && feed.text.includes('DESCRIPTION:教师：')
     && feed.text.includes('CATEGORIES:课表,')
+    && !feed.text.includes('STATUS:')
+    && !feed.text.includes('TRANSP:')
     && /COLOR:#[0-9A-F]{6}/.test(feed.text)
     && !/DTSTART:\d{8}T\d{6}Z/.test(feed.text) && Boolean(etag), `etag=${etag}`);
   if (etag) {

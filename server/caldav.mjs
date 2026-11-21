@@ -237,7 +237,6 @@ function vcalendar(eventLineArrays, name, { compact = false } = {}) {
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//jwxt-oauth//CN',
-      'CALSCALE:GREGORIAN',
       `X-WR-CALNAME:${(compact ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
@@ -291,8 +290,6 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       item.location ? `LOCATION:${esc(item.location)}` : '',
       description ? `DESCRIPTION:${esc(description)}` : '',
       `COLOR:${color || COURSE_COLORS[0]}`,
-      'STATUS:CONFIRMED',
-      'TRANSP:OPAQUE',
       `CATEGORIES:${categories}`,
       'END:VEVENT',
     ].filter(Boolean);
