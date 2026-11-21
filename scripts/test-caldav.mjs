@@ -112,7 +112,8 @@ try {
   });
   const eventCount = (report.text.match(/BEGIN:VEVENT/g) || []).length;
   ok('REPORT calendar-query 返回 VEVENT（RDATE）', report.status === 207
-    && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0 && report.text.includes('RDATE:'), `events=${eventCount}`);
+    && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0
+    && report.text.includes('RDATE;TZID=Asia/Shanghai:'), `events=${eventCount}`);
 
   const sync = await req(calHref, {
     method: 'REPORT',
@@ -124,7 +125,8 @@ try {
   });
   const syncCount = (sync.text.match(/BEGIN:VEVENT/g) || []).length;
   ok('REPORT sync-collection 返回 RDATE 和 sync-token', sync.status === 207
-    && syncCount > 0 && sync.text.includes('<D:sync-token>') && sync.text.includes('RDATE:'));
+    && syncCount > 0 && sync.text.includes('<D:sync-token>')
+    && sync.text.includes('RDATE;TZID=Asia/Shanghai:'));
 
   const oppoSync = await req(calHref, {
     method: 'REPORT',
@@ -145,7 +147,9 @@ try {
 
   const feed = await req(calHref);
   const etag = feed.headers.get('etag') || '';
-  ok('GET 日历集合（.ics）', feed.status === 200 && /text\/calendar/i.test(feed.headers.get('content-type') || '') && feed.text.includes('BEGIN:VCALENDAR') && Boolean(etag), `etag=${etag}`);
+  ok('GET 日历集合（.ics）', feed.status === 200 && /text\/calendar/i.test(feed.headers.get('content-type') || '')
+    && feed.text.includes('BEGIN:VCALENDAR') && feed.text.includes('DTSTART;TZID=Asia/Shanghai:')
+    && !/DTSTART:\d{8}T\d{6}Z/.test(feed.text) && Boolean(etag), `etag=${etag}`);
   if (etag) {
     const cached = await req(calHref, { headers: { 'If-None-Match': etag } });
     ok('If-None-Match 返回 304', cached.status === 304);

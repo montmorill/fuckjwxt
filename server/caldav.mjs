@@ -11,7 +11,7 @@ import { jwxt } from './jwxt-service.mjs';
 const CALENDAR_NAME = '课表';
 const CALENDAR_TIMEZONE = 'Asia/Shanghai';
 const DEBUG = process.env.CALDAV_DEBUG === '1';
-const CALENDAR_TIMEZONE_ICS = [
+const CALENDAR_TIMEZONE_LINES = [
   'BEGIN:VTIMEZONE',
   'TZID:Asia/Shanghai',
   'BEGIN:STANDARD',
@@ -21,7 +21,8 @@ const CALENDAR_TIMEZONE_ICS = [
   'TZNAME:CST',
   'END:STANDARD',
   'END:VTIMEZONE',
-].join('\r\n');
+];
+const CALENDAR_TIMEZONE_ICS = CALENDAR_TIMEZONE_LINES.join('\r\n');
 const DEFAULT_PERIOD_TIMES = {
   '1-2': ['08:00', '09:40'],
   '3-4': ['10:00', '11:40'],
@@ -52,9 +53,12 @@ const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
+// 部分客户端（如 OPPO）不会还原 \, \; 和 \n，直接换成全角标点/空格，避免备注里出现反斜杠或断行。
 const icsEscape = s => String(s)
-  .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
-  .replace(/\r?\n/g, '\\n');
+  .replace(/,/g, '、')
+  .replace(/;/g, '；')
+  .replace(/\r?\n/g, ' ')
+  .replace(/\\/g, '\\\\');
 
 // RFC 5545 行折叠（按 UTF-8 字节，续行以空格开头）
 function fold(line) {
@@ -174,10 +178,15 @@ function dateFor(start, week, day) {
   return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
 }
 
-// 本地时间（固定 Asia/Shanghai，+08:00）转 UTC 的 iCalendar 时间戳
+// 本地时间（固定 Asia/Shanghai，+08:00）转 UTC，用于 DTSTAMP
 function utcStamp(y, m, d, hh = '00', mm = '00') {
   const dt = new Date(Date.UTC(y, m - 1, d, Number(hh) - 8, Number(mm)));
   return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}${pad(dt.getUTCSeconds())}Z`;
+}
+
+// 带 TZID 的本地时间，不再写 UTC
+function localStamp(y, m, d, hh = '00', mm = '00') {
+  return `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
 }
 
 function parseSemesterStart(html, semester) {
@@ -211,6 +220,7 @@ function vcalendar(eventLineArrays, name) {
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${icsEscape(name || CALENDAR_NAME)}`,
     `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
+    ...CALENDAR_TIMEZONE_LINES,
     ...eventLineArrays.flat(),
     'END:VCALENDAR',
   ];
@@ -222,9 +232,9 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, cale
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
     `DTSTAMP:${stamp}`,
-    `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
-    `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
-    ...rdates.map(r => `RDATE:${r}`),
+    `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
+    `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+    ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
     `SUMMARY:${icsEscape(item.name)}`,
     item.location ? `LOCATION:${icsEscape(item.location)}` : '',
     description ? `DESCRIPTION:${icsEscape(description)}` : '',
@@ -243,7 +253,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, cale
     etag: `"${sha256(ics).slice(0, 32)}"`,
     ics,
     eventLines,
-    start: utcStamp(day.y, day.m, day.d, sh, sm),
+    start: localStamp(day.y, day.m, day.d, sh, sm),
   };
 }
 
@@ -262,13 +272,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
 
-    const description = [
-      item.teacher ? `教师: ${item.teacher}` : '',
-      item.courseCode ? `课程编号: ${item.courseCode}` : '',
-      item.className ? `班级: ${item.className}` : '',
-      item.weeks ? `周次: ${item.weeks}` : '',
-      item.location ? `地点: ${item.location}` : '',
-    ].filter(Boolean).join('\n');
+    const description = item.teacher ? `教师 ${item.teacher}` : '';
 
     if (expand) {
       // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
@@ -289,7 +293,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const day = dateFor(start, weeks[0], item.day);
     const rdates = weeks.slice(1).map(week => {
       const d = dateFor(start, week, item.day);
-      return utcStamp(d.y, d.m, d.d, sh, sm);
+      return localStamp(d.y, d.m, d.d, sh, sm);
     });
     events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, calendarHref, stamp }));
   }
