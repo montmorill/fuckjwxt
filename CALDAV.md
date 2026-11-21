@@ -49,15 +49,20 @@ GET /.well-known/caldav  → 301 /caldav/
 ```
 /caldav/principals/<学号>/
 /caldav/calendars/<学号>/
-/caldav/calendars/<学号>/timetable/
+/caldav/calendars/<学号>/course-<课程哈希>/
+/caldav/calendars/<学号>/course-<课程哈希>/<hash>.ics
+/caldav/calendars/<学号>/timetable/          # 全部课程合集（兼容旧客户端）
 /caldav/calendars/<学号>/timetable/<hash>.ics
 /caldav/calendars/<学号>/timetable.ics
 ```
+
+首页 Depth 1 会列出每门课一个日历，每个日历有自己的颜色；`timetable` 仍保留为全部课程的合集，但不再出现在首页列表里。
 
 用户名只能访问自己的 principal/calendar，跨用户请求返回 404。Basic 登录名就是学号；不需要单独注册服务用户名，只用学号 + 强智密码/CalDAV token 即可使用 CalDAV。
 
 ## 数据与时间
 
+- 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`，单次同步的数据量也更小。
 - 默认每个课程条目生成一个 VEVENT，多周用 `RDATE` 展开。
 - 检测到 `User-Agent` 含 `OPPO`（OPPO 日历不展开 `RDATE`）时，改为每个上课日一个独立 VEVENT，同一课程不同周次使用不同 UID。
 - 两种模式的 UID、ETag 和缓存彼此独立，客户端切来切去不会互相污染。
