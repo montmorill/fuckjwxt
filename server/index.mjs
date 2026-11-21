@@ -344,15 +344,15 @@ add('POST', '/admin/users', async ({ req }) => {
   requireAdmin(req);
   rateLimit(req);
   const body = await parseJson(req);
-  const username = validateUsername(body.username);
   const account = String(body.account || '').trim();
+  if (!account) throw new HttpError(400, 'invalid_request', 'account required');
+  const username = validateUsername(body.username || account);
   const password = String(body.password || '');
   const displayName = body.displayName ? String(body.displayName).trim() : username;
   const baseUrl = body.baseUrl ? String(body.baseUrl).trim() : null;
   const servicePassword = body.servicePassword === undefined ? null : String(body.servicePassword);
   const caldavSemester = validateSemester(body.caldavSemester) ?? null;
 
-  if (!account) throw new HttpError(400, 'invalid_request', 'account required');
   if (!password) throw new HttpError(400, 'invalid_request', 'password required');
   if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, 'invalid_request', 'baseUrl must be http(s)');
   if (servicePassword !== null && servicePassword.length < 8) {

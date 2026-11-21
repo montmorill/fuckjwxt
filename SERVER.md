@@ -27,7 +27,6 @@ node scripts/admin.mjs gen-token    # 填入 ADMIN_TOKEN
 
 # 创建第一个用户（会校验教务密码并写入 SQLite）
 node scripts/admin.mjs add-user `
-  --username alice `
   --account <学号> `
   --password '<教务密码>' `
   --service-password '<服务密码>'
@@ -36,7 +35,8 @@ npm start
 ```
 
 - 服务端**不再从 `.env` 导入用户**；用户必须通过 CLI 或 `POST /admin/users` 创建。
-- 打开 `http://localhost:8787/login`，用用户自己的用户名 + 服务密码登录。
+- `--username` 可省略，省略时用户名就是学号；也可以只创建 CalDAV 用户，不设置服务密码。
+- 打开 `http://localhost:8787/login`，用用户名（省略 `--username` 时就是学号）+ 服务密码登录。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 
 ### 添加更多用户
@@ -45,12 +45,13 @@ CLI：
 
 ```bash
 node scripts/admin.mjs add-user \
-  --username alice \
   --account 202600000001 \
   --password '<教务密码>' \
   --service-password '<服务密码>' \
   --display-name 'Alice'
 ```
+
+`--username` 可选，省略时用户名 = 学号。
 
 或管理 API：
 
@@ -58,10 +59,10 @@ node scripts/admin.mjs add-user \
 curl -X POST http://localhost:8787/admin/users \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"username":"alice","account":"202600000001","password":"...","servicePassword":"...","displayName":"Alice"}'
+  -d '{"account":"202600000001","password":"...","servicePassword":"...","displayName":"Alice"}'
 ```
 
-`verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
+`username` 可选，省略时使用学号。`verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
 
 `caldavSemester` 可选，格式如 `2026-2027-1`；不设置时 CalDAV 使用当前学期。
 
@@ -215,7 +216,7 @@ GET /openapi.json
 | 接口 | 说明 |
 |---|---|
 | `GET /admin/users` | 用户列表 |
-| `POST /admin/users` | 创建用户 `{username,account,password,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
+| `POST /admin/users` | 创建用户 `{account,password,username?,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
 | `PUT /admin/users/:userId` | 更新用户（账号/密码/服务密码/禁用/CalDAV 学期） |
 | `DELETE /admin/users/:userId` | 删除用户（级联删除会话/CalDAV token） |
 | `POST /admin/users/:userId/caldav-tokens` | 签发 CalDAV token（只返回一次） |
@@ -264,6 +265,6 @@ scripts/
 
 ## 已验证
 
-- OAuth 端到端 **39 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号用户名与强智密码登录等。
+- OAuth 端到端 **40 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号用户名与强智密码登录等。
 - CalDAV **13 项**：PROPFIND（含 `/.well-known/caldav`）/REPORT（calendar-query、sync-collection、OPPO 独立事件）/GET、ETag/304、错误密码 401。
 - SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

@@ -964,14 +964,13 @@
       "UserCreate": {
         "type": "object",
         "required": [
-          "username",
           "account",
           "password"
         ],
         "properties": {
           "username": {
             "type": "string",
-            "description": "2-64 位 A-Z a-z 0-9 . _ -，用于服务登录和 CalDAV 路径"
+            "description": "可选；省略时使用学号。2-64 位 A-Z a-z 0-9 . _ -，用于服务登录"
           },
           "displayName": {
             "type": "string"

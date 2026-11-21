@@ -29,14 +29,15 @@ Copy-Item .env.example .env
 node scripts/admin.mjs gen-key      # 写入 MASTER_KEY
 node scripts/admin.mjs gen-token    # 写入 ADMIN_TOKEN
 
-# 创建第一个用户（校验教务密码并写入 SQLite）
-node scripts/admin.mjs add-user --username alice --account <学号> --password <教务密码> --service-password <服务密码>
+# 创建第一个用户（校验教务密码并写入 SQLite；用户名默认为学号）
+node scripts/admin.mjs add-user --account <学号> --password <教务密码> --service-password <服务密码>
 
 npm start
 ```
 
 - 服务端不再从 `.env` 导入用户；所有用户通过 CLI 或 `POST /admin/users` 创建。
-- 打开 `http://localhost:8787/login`，用用户自己的用户名 + 服务密码登录。
+- `--username` 可省略，省略时用户名就是学号；只使用 CalDAV 时可以不设服务密码。
+- 打开 `http://localhost:8787/login`，用用户名（默认学号）+ 服务密码登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 

@@ -298,6 +298,14 @@ try {
   ok('user caldav semester', bob.body.caldavSemester === '2026-2027-1', bob.body.caldavSemester);
   bobId = bob.body.id;
 
+  const carol = await postJson('/admin/users', {
+    account: '202600000098',
+    password: 'fake',
+    verify: false,
+  }, admin);
+  ok('username defaults to account', carol.status === 200 && carol.body.username === '202600000098', carol.body.username);
+  if (carol.body.id) await del(`/admin/users/${carol.body.id}`, admin).catch(() => {});
+
   const bobJar = makeJar();
   const bobLogin = await serviceLogin(bobJar, 'bob', 'bob-pass');
   ok('bob service login', bobLogin.status === 302);
@@ -336,22 +344,24 @@ try {
 
   const bobAccountHome = await propfind('/caldav/calendars/202600000099/', bob.body.account, 'fake', 0);
   ok('caldav accepts account as username', bobAccountHome.status === 207
-    && bobAccountHome.text.includes('/caldav/calendars/bob/'));
+    && bobAccountHome.text.includes('/caldav/calendars/202600000099/'));
 
   const primaryCd = await postJson(`/admin/users/${primary.id}/caldav-tokens`, { label: 'test-primary' }, admin);
   ok('issue primary caldav token', primaryCd.status === 200 && Boolean(primaryCd.body.token));
   primaryTokenId = primaryCd.body.id;
 
   const bobRoot = await propfind('/caldav/', 'bob', bobCd.body.token);
-  ok('bob caldav discovery', bobRoot.status === 207 && bobRoot.text.includes('/caldav/principals/bob/'));
+  ok('bob caldav discovery', bobRoot.status === 207
+    && bobRoot.text.includes(`/caldav/principals/${bob.body.account}/`));
 
-  const bobHome = await propfind('/caldav/calendars/bob/', 'bob', bobCd.body.token, 0);
-  ok('bob home discovery', bobHome.status === 207 && bobHome.text.includes('/caldav/calendars/bob/'));
+  const bobHome = await propfind(`/caldav/calendars/${bob.body.account}/`, 'bob', bobCd.body.token, 0);
+  ok('bob home discovery', bobHome.status === 207
+    && bobHome.text.includes(`/caldav/calendars/${bob.body.account}/`));
 
-  const cross1 = await propfind('/caldav/calendars/caldav/', 'bob', bobCd.body.token);
+  const cross1 = await propfind(`/caldav/calendars/${primary.account}/`, 'bob', bobCd.body.token);
   ok('bob cannot access primary calendar', cross1.status === 404);
 
-  const cross2 = await propfind('/caldav/calendars/bob/', primary.username, primaryCd.body.token);
+  const cross2 = await propfind(`/caldav/calendars/${bob.body.account}/`, primary.username, primaryCd.body.token);
   ok('primary cannot access bob calendar', cross2.status === 404);
 
   const badCd = await propfind('/caldav/', 'bob', 'wrong-token');

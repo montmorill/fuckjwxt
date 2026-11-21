@@ -32,10 +32,10 @@ const DEFAULT_PERIOD_TIMES = {
 };
 
 function pathsFor(user) {
-  const username = encodeURIComponent(user.username || user.account);
-  const home = `/caldav/calendars/${username}/`;
+  const owner = encodeURIComponent(user.account || user.username);
+  const home = `/caldav/calendars/${owner}/`;
   return {
-    principal: `/caldav/principals/${username}/`,
+    principal: `/caldav/principals/${owner}/`,
     home,
     calendar: `${home}timetable/`,
   };
@@ -509,7 +509,7 @@ async function handlePropfind(req, res, user, path) {
   }
   const requested = requestedProps(body);
   const paths = pathsFor(user);
-  const username = user.username || user.account;
+  const username = user.account || user.username;
 
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user, expandEventsFor(req));

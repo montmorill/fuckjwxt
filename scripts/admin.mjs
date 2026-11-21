@@ -43,8 +43,8 @@ const args = parseArgs(rest);
 
 switch (cmd) {
   case 'add-user': {
-    const username = String(args.username || '').trim();
     const account = String(args.account || '').trim();
+    const username = String(args.username || account).trim();
     const password = String(args.password || '');
     const baseUrl = args['base-url'] || null;
     const displayName = args['display-name'] || username;
@@ -52,8 +52,8 @@ switch (cmd) {
     const caldavSemester = args['caldav-semester'] !== undefined
       ? (String(args['caldav-semester']).trim() || null)
       : null;
-    if (!username || !account || !password) throw new Error('需要 --username --account --password');
-    if (!/^[A-Za-z0-9._-]{2,64}$/.test(username)) throw new Error('username 只能包含 A-Z a-z 0-9 . _ -，长度 2-64');
+    if (!account || !password) throw new Error('需要 --account --password');
+    if (!/^[A-Za-z0-9._-]{2,64}$/.test(username)) throw new Error('username 只能包含 A-Z a-z 0-9 . _ -，长度 2-64；可省略 --username 直接使用学号');
     if (servicePassword !== null && String(servicePassword).length < 8) throw new Error('--service-password 至少 8 位');
     if (caldavSemester && !/^\d{4}-\d{4}-[12]$/.test(caldavSemester)) throw new Error('--caldav-semester 格式应为 2026-2027-1');
     if (db.getUserByUsername(username)) throw new Error('username 已存在');
@@ -249,7 +249,7 @@ switch (cmd) {
     console.log(`用法:
   node scripts/admin.mjs gen-key
   node scripts/admin.mjs gen-token
-  node scripts/admin.mjs add-user --username <名> --account <学号> --password <密码> [--service-password <密码>] [--display-name <名>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
+  node scripts/admin.mjs add-user --account <学号> --password <密码> [--username <名>] [--service-password <密码>] [--display-name <名>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
   node scripts/admin.mjs list-users
   node scripts/admin.mjs set-user <id> [--username <名>] [--account <学号>] [--password <密码>] [--service-password <密码>] [--display-name <名>] [--caldav-semester 2026-2027-1] [--disabled true|false] [--no-verify]
   node scripts/admin.mjs del-user <id>
