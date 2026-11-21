@@ -257,14 +257,11 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'BEGIN:VEVENT',
       `UID:${hash}`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+      `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
+      `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
       `SUMMARY:${icsEscape(item.name)}`,
-      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-      description ? `DESCRIPTION:${icsEscape(description)}` : '',
-      `COLOR:${color || COURSE_COLORS[0]}`,
       'END:VEVENT',
-    ].filter(Boolean)
+    ]
     : [
       'BEGIN:VEVENT',
       `UID:${hash}@jwxt-oauth`,
