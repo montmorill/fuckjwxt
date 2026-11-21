@@ -48,9 +48,11 @@ export const config = {
   sessionTtlMs: Number(process.env.JWXT_SESSION_TTL_MS || 900000),  // 15 分钟
   adminRateLimit: Number(process.env.ADMIN_RATE_LIMIT || 120),      // 每分钟
 
+  // 服务登录会话（OAuth 资源所有者）
+  sessionTtl: Number(process.env.SERVICE_SESSION_TTL || 604800),      // 秒，7 天
+  cookieSecure: issuer.startsWith('https://'),
+
   // CalDAV（只读课表）
-  caldavUser: process.env.CALDAV_USER || 'caldav',
-  caldavToken: process.env.CALDAV_TOKEN || '',
   caldavTimezone: process.env.CALDAV_TIMEZONE || 'Asia/Shanghai',
   caldavSemester: process.env.CALDAV_SEMESTER || '',
   caldavSemesterStart: process.env.CALDAV_SEMESTER_START || '',

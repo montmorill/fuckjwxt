@@ -1,6 +1,6 @@
 # fuckjwxt
 
-山东科技大学强智教务系统（`jwglxt.sdust.edu.cn`）的协议研究，以及把账号包装成 **OAuth 2.0 数据 API** 的服务端。
+山东科技大学强智教务系统（`jwglxt.sdust.edu.cn`）的协议研究，以及把账号包装成 **多用户 OAuth 2.0 数据 API** 的服务端。
 
 ## 文档
 
@@ -24,13 +24,21 @@ research/   协议笔记（不含抓包产物）
 
 ```powershell
 Copy-Item .env.example .env
-# 填 JWXT_ACCOUNT / JWXT_PASSWORD
 node scripts/admin.mjs gen-key      # 写入 MASTER_KEY
 node scripts/admin.mjs gen-token    # 写入 ADMIN_TOKEN
+
+# 创建第一个用户（校验教务密码并写入 SQLite）
+node scripts/admin.mjs add-user --username alice --account <学号> --password <教务密码> --service-password <服务密码>
+
 npm start
 ```
 
-详细用法见 [`SERVER.md`](SERVER.md)。
+- 服务端不再从 `.env` 导入用户；所有用户通过 CLI 或 `POST /admin/users` 创建。
+- 打开 `http://localhost:8787/login`，用用户自己的用户名 + 服务密码登录。
+- 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
+- 不兼容旧版单用户数据库；升级请删除 `data/jwxt-oauth.db`。
+
+详细用法见 [`SERVER.md`](SERVER.md) 和 [`CALDAV.md`](CALDAV.md)。
 
 ## 开发
 
@@ -44,6 +52,6 @@ npm run openapi:check  # 手动校验 openapi.json 是否最新
 ## 安全
 
 - `.env`、`data/`（SQLite，含加密凭据和令牌哈希）、`research/site/`（含个人信息）都已 gitignore。
-- 教务密码用 AES-256-GCM 加密落库，主密钥只在环境变量；OAuth access/refresh token 只存 SHA-256。
+- 教务密码用 AES-256-GCM 加密落库，主密钥只在环境变量；服务登录密码用 scrypt；OAuth/CalDAV token 只存 SHA-256。
 - 生产环境请用 HTTPS 反向代理，并把 `ISSUER` 改为外部地址。
 - 这是研究/个人项目，自动化访问请遵守学校规定。

@@ -794,64 +794,6 @@
           }
         }
       },
-      "AccountUpdate": {
-        "type": "object",
-        "required": [
-          "account",
-          "password"
-        ],
-        "properties": {
-          "account": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string",
-            "format": "password"
-          },
-          "baseUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "默认 https://jwglxt.sdust.edu.cn"
-          },
-          "verify": {
-            "type": "boolean",
-            "default": true,
-            "description": "先登录验证再落库"
-          }
-        }
-      },
-      "AccountUpdateResult": {
-        "type": "object",
-        "properties": {
-          "ok": {
-            "type": "boolean"
-          },
-          "account": {
-            "type": "string"
-          },
-          "verified": {
-            "type": "boolean"
-          }
-        }
-      },
-      "AccountInfo": {
-        "type": "object",
-        "properties": {
-          "account": {
-            "type": "string",
-            "nullable": true
-          },
-          "baseUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "updatedAt": {
-            "type": "integer",
-            "nullable": true,
-            "description": "Unix 秒"
-          }
-        }
-      },
       "ClientCreate": {
         "type": "object",
         "required": [
@@ -887,6 +829,14 @@
           "public": {
             "type": "boolean",
             "default": false
+          },
+          "userId": {
+            "type": "integer",
+            "description": "必须提供 userId 或 username（二选一）"
+          },
+          "username": {
+            "type": "string",
+            "description": "必须提供 userId 或 username（二选一）"
           }
         }
       },
@@ -918,6 +868,14 @@
           },
           "public": {
             "type": "boolean"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -948,6 +906,167 @@
           "created_at": {
             "type": "integer",
             "description": "Unix 秒"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "account": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "hasServicePassword": {
+            "type": "boolean"
+          },
+          "caldavTokenCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "integer",
+            "description": "Unix 秒"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "description": "Unix 秒"
+          }
+        }
+      },
+      "UserCreate": {
+        "type": "object",
+        "required": [
+          "username",
+          "account",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "2-64 位 A-Z a-z 0-9 . _ -，用于服务登录和 CalDAV 路径"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string",
+            "description": "强智学号/工号"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "教务密码"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "servicePassword": {
+            "type": "string",
+            "format": "password",
+            "description": "服务登录密码，至少 8 位；省略则不能登录 OAuth 授权页"
+          },
+          "verify": {
+            "type": "boolean",
+            "default": true,
+            "description": "先登录教务验证再落库"
+          }
+        }
+      },
+      "UserUpdate": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "servicePassword": {
+            "type": "string",
+            "format": "password",
+            "nullable": true,
+            "description": "传空字符串清除"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "verify": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "CalDavToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "integer"
+          },
+          "revokedAt": {
+            "type": "integer",
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "CalDavTokenCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "description": "只返回这一次，作为 CalDAV Basic 密码"
           }
         }
       }

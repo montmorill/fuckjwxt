@@ -10,9 +10,13 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  display_name TEXT,
   account TEXT NOT NULL UNIQUE,
   password_enc TEXT NOT NULL,
   base_url TEXT,
+  service_password_hash TEXT,
+  disabled INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -24,6 +28,7 @@ CREATE TABLE IF NOT EXISTS clients (
   redirect_uris TEXT NOT NULL,
   scopes TEXT NOT NULL,
   public INTEGER NOT NULL DEFAULT 0,
+  user_id INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );
 
@@ -63,32 +68,99 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_client ON refresh_tokens(client_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_family ON refresh_tokens(family_id);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id_hash TEXT PRIMARY KEY,
+  user_id INTEGER,
+  csrf_token TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS caldav_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  label TEXT,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  revoked_at INTEGER,
+  last_used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_caldav_tokens_user ON caldav_tokens(user_id);
 `);
 
 // ---------- users ----------
-export const getPrimaryUser = () =>
-  db.prepare('SELECT * FROM users ORDER BY id LIMIT 1').get();
-
 export const getUserById = id =>
   db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 
-export function upsertPrimaryUser({ account, passwordEnc, baseUrl }) {
-  const existing = getPrimaryUser();
+export const getUserByUsername = username =>
+  db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+
+export const getUserByAccount = account =>
+  db.prepare('SELECT * FROM users WHERE account = ?').get(account);
+
+export const listUsers = () =>
+  db.prepare(`SELECT u.*,
+      (SELECT COUNT(*) FROM caldav_tokens t WHERE t.user_id = u.id AND t.revoked_at IS NULL) AS caldav_token_count
+    FROM users u ORDER BY u.id`).all();
+
+export function createUser({ username, displayName, account, passwordEnc, baseUrl, servicePasswordHash }) {
   const t = now();
-  if (existing) {
-    db.prepare('UPDATE users SET account = ?, password_enc = ?, base_url = ?, updated_at = ? WHERE id = ?')
-      .run(account, passwordEnc, baseUrl ?? null, t, existing.id);
-    return getUserById(existing.id);
-  }
-  const r = db.prepare('INSERT INTO users (account, password_enc, base_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
-    .run(account, passwordEnc, baseUrl ?? null, t, t);
+  const r = db.prepare(`INSERT INTO users
+      (username, display_name, account, password_enc, base_url, service_password_hash, disabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+    .run(username, displayName ?? username, account, passwordEnc, baseUrl ?? null, servicePasswordHash ?? null, t, t);
   return getUserById(Number(r.lastInsertRowid));
 }
 
+export function updateUser(id, fields) {
+  const user = getUserById(id);
+  if (!user) return null;
+  db.prepare(`UPDATE users SET username = ?, display_name = ?, account = ?, password_enc = ?,
+      base_url = ?, service_password_hash = ?, disabled = ?, updated_at = ?
+    WHERE id = ?`)
+    .run(
+      fields.username ?? user.username,
+      fields.displayName ?? user.display_name,
+      fields.account ?? user.account,
+      fields.passwordEnc ?? user.password_enc,
+      fields.baseUrl !== undefined ? fields.baseUrl : user.base_url,
+      fields.servicePasswordHash !== undefined ? fields.servicePasswordHash : user.service_password_hash,
+      fields.disabled !== undefined ? (fields.disabled ? 1 : 0) : user.disabled,
+      now(),
+      id,
+    );
+  return getUserById(id);
+}
+
+export function deleteUser(id) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    // clients.user_id 是 NOT NULL，删除用户时一并删除其客户端
+    db.prepare('DELETE FROM auth_codes WHERE client_id IN (SELECT client_id FROM clients WHERE user_id = ?)').run(id);
+    db.prepare('DELETE FROM access_tokens WHERE client_id IN (SELECT client_id FROM clients WHERE user_id = ?)').run(id);
+    db.prepare('DELETE FROM refresh_tokens WHERE client_id IN (SELECT client_id FROM clients WHERE user_id = ?)').run(id);
+    db.prepare('DELETE FROM clients WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM caldav_tokens WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM auth_codes WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM access_tokens WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(id);
+    const changed = db.prepare('DELETE FROM users WHERE id = ?').run(id).changes;
+    db.exec('COMMIT');
+    return changed;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
 // ---------- clients ----------
-export function createClient({ clientId, name, secretHash, redirectUris, scopes, isPublic }) {
-  db.prepare('INSERT INTO clients (client_id, name, secret_hash, redirect_uris, scopes, public, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(clientId, name, secretHash ?? null, JSON.stringify(redirectUris), scopes.join(' '), isPublic ? 1 : 0, now());
+export function createClient({ clientId, name, secretHash, redirectUris, scopes, isPublic, userId }) {
+  if (!userId) throw new Error('client userId is required');
+  db.prepare('INSERT INTO clients (client_id, name, secret_hash, redirect_uris, scopes, public, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(clientId, name, secretHash ?? null, JSON.stringify(redirectUris), scopes.join(' '), isPublic ? 1 : 0, userId, now());
   return getClient(clientId);
 }
 
@@ -96,7 +168,10 @@ export const getClient = clientId =>
   db.prepare('SELECT * FROM clients WHERE client_id = ?').get(clientId);
 
 export const listClients = () =>
-  db.prepare('SELECT client_id, name, redirect_uris, scopes, public, created_at FROM clients ORDER BY created_at DESC').all();
+  db.prepare(`SELECT c.client_id, c.name, c.redirect_uris, c.scopes, c.public, c.created_at,
+      c.user_id, u.username
+    FROM clients c LEFT JOIN users u ON u.id = c.user_id
+    ORDER BY c.created_at DESC`).all();
 
 export const deleteClient = clientId =>
   db.prepare('DELETE FROM clients WHERE client_id = ?').run(clientId).changes;
@@ -140,10 +215,49 @@ export const revokeRefreshToken = (tokenHash, t = now()) =>
 export const revokeRefreshFamily = (familyId, t = now()) =>
   db.prepare('UPDATE refresh_tokens SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL').run(t, familyId).changes;
 
+// ---------- sessions ----------
+export function createSession({ idHash, userId, csrfToken, expiresAt }) {
+  db.prepare('INSERT INTO sessions (id_hash, user_id, csrf_token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(idHash, userId ?? null, csrfToken, expiresAt, now());
+}
+
+export const getSession = idHash =>
+  db.prepare('SELECT * FROM sessions WHERE id_hash = ?').get(idHash);
+
+export const deleteSession = idHash =>
+  db.prepare('DELETE FROM sessions WHERE id_hash = ?').run(idHash).changes;
+
+export const deleteUserSessions = userId =>
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId).changes;
+
+// ---------- caldav tokens ----------
+export function createCalDavToken({ userId, label, tokenHash }) {
+  const r = db.prepare('INSERT INTO caldav_tokens (user_id, label, token_hash, created_at) VALUES (?, ?, ?, ?)')
+    .run(userId, label ?? null, tokenHash, now());
+  return getCalDavTokenById(Number(r.lastInsertRowid));
+}
+
+export const getCalDavTokenById = id =>
+  db.prepare('SELECT * FROM caldav_tokens WHERE id = ?').get(id);
+
+export const getCalDavTokenByHash = hash =>
+  db.prepare('SELECT * FROM caldav_tokens WHERE token_hash = ? AND revoked_at IS NULL').get(hash);
+
+export const listCalDavTokens = userId =>
+  db.prepare('SELECT id, label, created_at, revoked_at, last_used_at FROM caldav_tokens WHERE user_id = ? ORDER BY id').all(userId);
+
+export const revokeCalDavToken = (id, userId) =>
+  db.prepare('UPDATE caldav_tokens SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL')
+    .run(now(), id, userId).changes;
+
+export const touchCalDavToken = id =>
+  db.prepare('UPDATE caldav_tokens SET last_used_at = ? WHERE id = ?').run(now(), id);
+
 // ---------- cleanup ----------
 export function cleanup() {
   const t = now();
   db.prepare('DELETE FROM auth_codes WHERE expires_at < ?').run(t - 3600);
   db.prepare('DELETE FROM access_tokens WHERE expires_at < ?').run(t - 86400);
   db.prepare('DELETE FROM refresh_tokens WHERE expires_at < ?').run(t - 86400);
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(t);
 }

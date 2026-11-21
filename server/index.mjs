@@ -1,12 +1,22 @@
 import http from 'node:http';
 import { config, SCOPES } from './config.mjs';
 import { buildOpenApi, routeKeys as specRouteKeys } from './openapi.mjs';
-import { db, getPrimaryUser, upsertPrimaryUser, createClient, listClients, deleteClient, cleanup } from './db.mjs';
-import { encrypt, hashToken, randomToken, safeEqual } from './crypto.mjs';
+import {
+  db, getUserById, getUserByUsername, getUserByAccount,
+  createUser, updateUser, deleteUser, listUsers,
+  createClient, listClients, deleteClient,
+  createCalDavToken, listCalDavTokens, revokeCalDavToken, deleteUserSessions, cleanup,
+} from './db.mjs';
+import { encrypt, hashToken, hashPassword, verifyPassword, randomToken, safeEqual } from './crypto.mjs';
 import * as oauth from './oauth.mjs';
 import { handlers as apiHandlers, ApiError } from './api.mjs';
 import { verifyCredentials, clearSession, clearAllSessions } from './jwxt-service.mjs';
 import { handleCalDav, clearCache as clearCalDavCache } from './caldav.mjs';
+import {
+  getSessionFromRequest, getSessionUser, createAnonymousSession, rotateSession, destroySession,
+  sidFromRequest, safeNext, renderLoginPage, renderConsentPage,
+  loginAllowed, recordLoginFailure, clearLoginFailures,
+} from './auth.mjs';
 
 class HttpError extends Error {
   constructor(status, error, description = '', headers = {}) {
@@ -18,7 +28,8 @@ class HttpError extends Error {
 }
 
 const routes = [];
-const add = (method, path, handler) => routes.push({ method, parts: path.split('/').filter(Boolean), handler });
+const add = (method, path, handler, opts = {}) =>
+  routes.push({ method, parts: path.split('/').filter(Boolean), handler, skipOpenApi: Boolean(opts.skipOpenApi) });
 
 function match(method, pathname) {
   const parts = pathname.split('/').filter(Boolean);
@@ -56,6 +67,24 @@ function sendText(res, status, body, extra = {}) {
   res.writeHead(status, headers);
   res.end(body);
 }
+
+function sendHtml(res, status, html) {
+  res.writeHead(status, { ...baseHeaders(), 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
+}
+
+const safeUser = u => ({
+  id: u.id,
+  username: u.username,
+  displayName: u.display_name,
+  account: u.account,
+  baseUrl: u.base_url,
+  disabled: Boolean(u.disabled),
+  hasServicePassword: Boolean(u.service_password_hash),
+  caldavTokenCount: u.caldav_token_count,
+  createdAt: u.created_at,
+  updatedAt: u.updated_at,
+});
 
 function redirect(res, location) {
   res.writeHead(302, { ...baseHeaders(), Location: location });
@@ -147,12 +176,95 @@ add('GET', '/healthz', async () => ({ status: 'ok', time: new Date().toISOString
 
 add('GET', '/.well-known/oauth-authorization-server', async () => oauth.metadata());
 
+// ---------- routes: 服务登录 ----------
+add('GET', '/login', async ({ req, res, query }) => {
+  const next = safeNext(query.get('next') || '/');
+  if (getSessionUser(req)) return redirect(res, next);
+  let session = getSessionFromRequest(req);
+  if (!session) session = createAnonymousSession(res);
+  sendHtml(res, 200, renderLoginPage({ csrf: session.csrf_token, next }));
+}, { skipOpenApi: true });
+
+add('POST', '/login', async ({ req, res }) => {
+  const form = await parseForm(req);
+  const next = safeNext(form.next || '/');
+  const session = getSessionFromRequest(req);
+  if (!session || !form.csrf || !safeEqual(form.csrf, session.csrf_token)) {
+    return sendHtml(res, 400, renderLoginPage({ csrf: session?.csrf_token || '', next, error: '会话已过期，请重试' }));
+  }
+
+  const ip = req.socket.remoteAddress || 'unknown';
+  const username = String(form.username || '').trim();
+  if (!loginAllowed(ip, username)) {
+    return sendHtml(res, 429, renderLoginPage({ csrf: session.csrf_token, next, username, error: '尝试过于频繁，请稍后再试' }));
+  }
+
+  const user = getUserByUsername(username);
+  if (!user || user.disabled || !verifyPassword(String(form.password || ''), user.service_password_hash)) {
+    recordLoginFailure(ip, username);
+    return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, username, error: '用户名或密码错误' }));
+  }
+
+  clearLoginFailures(ip, username);
+  rotateSession(res, sidFromRequest(req), user);
+  redirect(res, next);
+}, { skipOpenApi: true });
+
+const logoutHandler = async ({ req, res }) => {
+  destroySession(req, res);
+  redirect(res, '/login');
+};
+add('GET', '/logout', logoutHandler, { skipOpenApi: true });
+add('POST', '/logout', logoutHandler, { skipOpenApi: true });
+
 // ---------- routes: oauth ----------
 add('GET', '/oauth/authorize', async ({ req, res, query }) => {
-  const user = getPrimaryUser();
-  const url = oauth.authorize({ query, user });
-  redirect(res, url);
+  const details = oauth.validateAuthorize(query);
+  const current = getSessionUser(req);
+  if (!current) {
+    return redirect(res, `/login?next=${encodeURIComponent(safeNext(req.url))}`);
+  }
+
+  sendHtml(res, 200, renderConsentPage({
+    csrf: current.session.csrf_token,
+    user: current.user,
+    client: details.client,
+    scopes: details.scopes,
+    params: {
+      response_type: query.get('response_type') || 'code',
+      client_id: query.get('client_id') || '',
+      redirect_uri: query.get('redirect_uri') || '',
+      scope: query.get('scope') || '',
+      state: query.get('state') || '',
+      code_challenge: query.get('code_challenge') || '',
+      code_challenge_method: query.get('code_challenge_method') || '',
+    },
+  }));
 });
+
+add('POST', '/oauth/authorize', async ({ req, res }) => {
+  const form = await parseForm(req);
+  const current = getSessionUser(req);
+  if (!current) return redirect(res, '/login?next=' + encodeURIComponent('/oauth/authorize'));
+  if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
+    throw new HttpError(400, 'invalid_request', 'csrf token mismatch');
+  }
+
+  const params = new URLSearchParams();
+  for (const k of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'code_challenge', 'code_challenge_method']) {
+    if (form[k] !== undefined && form[k] !== '') params.set(k, form[k]);
+  }
+  const details = oauth.validateAuthorize(params);
+
+  if (form.decision !== 'approve') {
+    const url = new URL(details.redirectUri);
+    url.searchParams.set('error', 'access_denied');
+    if (details.state) url.searchParams.set('state', details.state);
+    return redirect(res, url.toString());
+  }
+
+  redirect(res, oauth.authorize({ query: params, user: current.user }));
+}, { skipOpenApi: true });
 
 add('POST', '/oauth/token', async ({ req }) => {
   rateLimit(req);
@@ -201,17 +313,40 @@ for (const [path, name] of Object.entries(apiRoutes)) {
   });
 }
 
-// ---------- routes: admin ----------
-add('PUT', '/admin/account', async ({ req }) => {
+// ---------- routes: admin users ----------
+const USERNAME_RE = /^[A-Za-z0-9._-]{2,64}$/;
+const validateUsername = value => {
+  const username = String(value || '').trim();
+  if (!USERNAME_RE.test(username)) {
+    throw new HttpError(400, 'invalid_request', 'username must be 2-64 chars of A-Z a-z 0-9 . _ -');
+  }
+  return username;
+};
+
+add('GET', '/admin/users', async ({ req }) => {
+  requireAdmin(req);
+  return listUsers().map(safeUser);
+});
+
+add('POST', '/admin/users', async ({ req }) => {
   requireAdmin(req);
   rateLimit(req);
   const body = await parseJson(req);
+  const username = validateUsername(body.username);
   const account = String(body.account || '').trim();
   const password = String(body.password || '');
+  const displayName = body.displayName ? String(body.displayName).trim() : username;
   const baseUrl = body.baseUrl ? String(body.baseUrl).trim() : null;
+  const servicePassword = body.servicePassword === undefined ? null : String(body.servicePassword);
+
   if (!account) throw new HttpError(400, 'invalid_request', 'account required');
   if (!password) throw new HttpError(400, 'invalid_request', 'password required');
   if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, 'invalid_request', 'baseUrl must be http(s)');
+  if (servicePassword !== null && servicePassword.length < 8) {
+    throw new HttpError(400, 'invalid_request', 'servicePassword must be at least 8 chars');
+  }
+  if (getUserByUsername(username)) throw new HttpError(409, 'conflict', 'username already exists');
+  if (getUserByAccount(account)) throw new HttpError(409, 'conflict', 'account already exists');
 
   if (body.verify !== false) {
     try {
@@ -221,21 +356,137 @@ add('PUT', '/admin/account', async ({ req }) => {
     }
   }
 
-  const user = upsertPrimaryUser({
+  const user = createUser({
+    username,
+    displayName,
     account,
     passwordEnc: encrypt(password),
     baseUrl,
+    servicePasswordHash: servicePassword ? hashPassword(servicePassword) : null,
   });
-  clearSession(user.id);
-  clearCalDavCache();
-  return { ok: true, account: user.account, verified: body.verify !== false };
+  return safeUser(user);
 });
 
-add('GET', '/admin/account', async ({ req }) => {
+add('PUT', '/admin/users/:userId', async ({ req, params }) => {
   requireAdmin(req);
-  const user = getPrimaryUser();
-  if (!user) return { account: null };
-  return { account: user.account, baseUrl: user.base_url, updatedAt: user.updated_at };
+  rateLimit(req);
+  const id = Number(params.userId);
+  const user = getUserById(id);
+  if (!user) throw new HttpError(404, 'not_found', 'user not found');
+
+  const body = await parseJson(req);
+  let username = user.username;
+  if (body.username !== undefined) {
+    username = validateUsername(body.username);
+    const other = getUserByUsername(username);
+    if (other && other.id !== id) throw new HttpError(409, 'conflict', 'username already exists');
+  }
+
+  let account = user.account;
+  const accountChanged = body.account !== undefined && String(body.account).trim() !== user.account;
+  if (body.account !== undefined) {
+    account = String(body.account).trim();
+    if (!account) throw new HttpError(400, 'invalid_request', 'account required');
+    const other = getUserByAccount(account);
+    if (other && other.id !== id) throw new HttpError(409, 'conflict', 'account already exists');
+  }
+  if (accountChanged && body.password === undefined && body.verify !== false) {
+    throw new HttpError(400, 'invalid_request', 'changing account requires password or verify:false');
+  }
+
+  let passwordEnc = user.password_enc;
+  let passwordPlain = null;
+  if (body.password !== undefined) {
+    passwordPlain = String(body.password);
+    if (!passwordPlain) throw new HttpError(400, 'invalid_request', 'password required');
+    passwordEnc = encrypt(passwordPlain);
+  }
+
+  const baseUrl = body.baseUrl !== undefined
+    ? (body.baseUrl ? String(body.baseUrl).trim() : null)
+    : user.base_url;
+  if (baseUrl && !/^https?:\/\//i.test(baseUrl)) throw new HttpError(400, 'invalid_request', 'baseUrl must be http(s)');
+
+  let servicePasswordHash = user.service_password_hash;
+  let revokeSessions = false;
+  if (body.servicePassword !== undefined) {
+    if (body.servicePassword === null || body.servicePassword === '') {
+      servicePasswordHash = null;
+    } else {
+      const sp = String(body.servicePassword);
+      if (sp.length < 8) throw new HttpError(400, 'invalid_request', 'servicePassword must be at least 8 chars');
+      servicePasswordHash = hashPassword(sp);
+    }
+    revokeSessions = true;
+  }
+
+  const disabled = body.disabled !== undefined ? Boolean(body.disabled) : Boolean(user.disabled);
+
+  if (body.verify !== false && passwordPlain !== null) {
+    try {
+      await verifyCredentials({ account, password: passwordPlain, baseUrl });
+    } catch {
+      throw new HttpError(400, 'invalid_credentials', '账号或密码校验失败');
+    }
+  }
+
+  const updated = updateUser(id, {
+    username,
+    displayName: body.displayName !== undefined ? String(body.displayName).trim() : user.display_name,
+    account,
+    passwordEnc,
+    baseUrl,
+    servicePasswordHash,
+    disabled,
+  });
+
+  clearSession(id);
+  clearCalDavCache(id);
+  if (revokeSessions || disabled) deleteUserSessions(id);
+
+  return safeUser(updated);
+});
+
+add('DELETE', '/admin/users/:userId', async ({ req, params }) => {
+  requireAdmin(req);
+  const id = Number(params.userId);
+  if (!getUserById(id)) throw new HttpError(404, 'not_found', 'user not found');
+  const changed = deleteUser(id);
+  clearSession(id);
+  clearCalDavCache(id);
+  return { ok: Boolean(changed) };
+});
+
+add('POST', '/admin/users/:userId/caldav-tokens', async ({ req, params }) => {
+  requireAdmin(req);
+  rateLimit(req);
+  const id = Number(params.userId);
+  if (!getUserById(id)) throw new HttpError(404, 'not_found', 'user not found');
+  const body = await parseJson(req);
+  const label = body.label ? String(body.label).slice(0, 80) : null;
+  const token = randomToken(32);
+  const row = createCalDavToken({ userId: id, label, tokenHash: hashToken(token) });
+  return { id: row.id, label: row.label, token }; // 只返回这一次
+});
+
+add('GET', '/admin/users/:userId/caldav-tokens', async ({ req, params }) => {
+  requireAdmin(req);
+  const id = Number(params.userId);
+  if (!getUserById(id)) throw new HttpError(404, 'not_found', 'user not found');
+  return listCalDavTokens(id).map(t => ({
+    id: t.id,
+    label: t.label,
+    createdAt: t.created_at,
+    revokedAt: t.revoked_at,
+    lastUsedAt: t.last_used_at,
+  }));
+});
+
+add('DELETE', '/admin/users/:userId/caldav-tokens/:tokenId', async ({ req, params }) => {
+  requireAdmin(req);
+  const changed = revokeCalDavToken(Number(params.tokenId), Number(params.userId));
+  if (!changed) throw new HttpError(404, 'not_found', 'token not found');
+  return { ok: true };
 });
 
 add('POST', '/admin/clients', async ({ req }) => {
@@ -262,6 +513,19 @@ add('POST', '/admin/clients', async ({ req }) => {
   const clientId = 'qz_' + randomToken(12);
   const secret = isPublic ? null : randomToken(32);
 
+  let userId;
+  if (body.userId !== undefined) {
+    userId = Number(body.userId);
+  } else if (body.username) {
+    const owner = getUserByUsername(String(body.username));
+    if (!owner) throw new HttpError(400, 'invalid_request', 'user not found');
+    userId = owner.id;
+  } else {
+    throw new HttpError(400, 'invalid_request', 'userId or username required');
+  }
+  const owner = userId ? getUserById(userId) : null;
+  if (!owner) throw new HttpError(400, 'invalid_request', 'user not found');
+
   createClient({
     clientId,
     name,
@@ -269,6 +533,7 @@ add('POST', '/admin/clients', async ({ req }) => {
     redirectUris,
     scopes,
     isPublic,
+    userId,
   });
 
   return {
@@ -278,6 +543,8 @@ add('POST', '/admin/clients', async ({ req }) => {
     redirect_uris: redirectUris,
     scopes,
     public: isPublic,
+    user_id: userId,
+    username: owner.username,
   };
 });
 
@@ -289,6 +556,8 @@ add('GET', '/admin/clients', async ({ req }) => {
     redirect_uris: JSON.parse(c.redirect_uris),
     scopes: c.scopes.split(' ').filter(Boolean),
     public: Boolean(c.public),
+    user_id: c.user_id,
+    username: c.username,
     created_at: c.created_at,
   }));
 });
@@ -303,7 +572,9 @@ add('DELETE', '/admin/clients/:clientId', async ({ req, params }) => {
 // ---------- OpenAPI 覆盖校验 ----------
 // 实际注册的路由必须都能在 openapi.mjs 的 routeMeta 里找到，防止文档漏接口。
 const toSpecPath = parts => '/' + parts.join('/').replace(/:([A-Za-z0-9_]+)/g, '{$1}');
-const actualRouteKeys = new Set(routes.map(r => `${r.method} ${toSpecPath(r.parts)}`));
+const actualRouteKeys = new Set(
+  routes.filter(r => !r.skipOpenApi).map(r => `${r.method} ${toSpecPath(r.parts)}`),
+);
 const specKeys = new Set(specRouteKeys);
 const missingInSpec = [...actualRouteKeys].filter(k => !specKeys.has(k));
 if (missingInSpec.length) {
@@ -373,23 +644,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// 首次启动：如果有 .env 里的教务账号且库里还没有，就加密入库（不打印密码）
-if (!getPrimaryUser() && process.env.JWXT_ACCOUNT && process.env.JWXT_PASSWORD) {
-  upsertPrimaryUser({
-    account: process.env.JWXT_ACCOUNT,
-    passwordEnc: encrypt(process.env.JWXT_PASSWORD),
-    baseUrl: process.env.JWXT_BASE_URL || null,
-  });
-  console.log('[init] 已从环境变量导入教务账号（加密存储）');
-}
-
 setInterval(cleanup, 10 * 60_000).unref();
 
 server.listen(config.port, () => {
   console.log(`jwxt-oauth listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
   console.log(`scopes: ${SCOPES.join(', ')}`);
-  console.log(`caldav: ${config.caldavToken ? `${config.issuer}/caldav/ (user=${config.caldavUser})` : 'disabled (CALDAV_TOKEN 未设置)'}`);
+  console.log(`login: ${config.issuer}/login`);
+  console.log(`caldav: ${config.issuer}/caldav/ (multi-user, Basic tokens in DB)`);
 });
 
 function shutdown() {

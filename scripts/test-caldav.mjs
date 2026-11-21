@@ -1,16 +1,13 @@
 // CalDAV 只读端到端测试。
-// 用法：
-//   CALDAV_URL=http://localhost:8787/caldav/ CALDAV_USER=caldav CALDAV_TOKEN=... npm run test:caldav
+// 用法（没有 CALDAV_TOKEN 时会用 ADMIN_TOKEN 临时签发一个）：
+//   CALDAV_URL=http://localhost:8787/caldav/ CALDAV_USERNAME=caldav ADMIN_TOKEN=... npm run test:caldav
 const BASE = (process.env.CALDAV_URL || 'http://localhost:8787/caldav/').replace(/\/?$/, '/');
-const USER = process.env.CALDAV_USER || 'caldav';
-const PASS = process.env.CALDAV_TOKEN;
-if (!PASS) {
-  console.error('缺少 CALDAV_TOKEN');
-  process.exit(1);
-}
-
 const origin = new URL(BASE).origin;
-const auth = 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64');
+const USER = process.env.CALDAV_USERNAME || 'caldav';
+const ADMIN = process.env.ADMIN_TOKEN;
+let PASS = process.env.CALDAV_TOKEN || '';
+let auth = PASS ? 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64') : '';
+let issuedToken = null;
 let fails = 0;
 const ok = (name, cond, extra = '') => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  ' + extra : ''}`);
@@ -25,6 +22,35 @@ async function fetchWithTimeout(url, opts = {}, ms = 90_000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function bootstrapToken() {
+  if (auth) return;
+  if (!ADMIN) {
+    console.error('缺少 CALDAV_TOKEN 或 ADMIN_TOKEN');
+    process.exit(1);
+  }
+  const admin = { Authorization: `Bearer ${ADMIN}` };
+  const usersRes = await fetch(origin + '/admin/users', { headers: admin });
+  const users = await usersRes.json();
+  const user = Array.isArray(users) ? users.find(u => u.username === USER) : null;
+  if (!user) {
+    console.error(`找不到用户 ${USER}；先运行 test:oauth 或 add-user`);
+    process.exit(1);
+  }
+  const r = await fetch(`${origin}/admin/users/${user.id}/caldav-tokens`, {
+    method: 'POST',
+    headers: { ...admin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: 'test-caldav' }),
+  });
+  const t = await r.json();
+  if (!t.token) {
+    console.error('签发 CalDAV token 失败', t);
+    process.exit(1);
+  }
+  PASS = t.token;
+  issuedToken = { userId: user.id, tokenId: t.id };
+  auth = 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64');
 }
 
 async function req(path, { method = 'GET', headers = {}, body } = {}) {
@@ -45,6 +71,8 @@ const propfind = (path, depth, props) => req(path, {
   },
   body: `<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop>${props}</D:prop></D:propfind>`,
 });
+
+await bootstrapToken();
 
 try {
   const options = await fetchWithTimeout(new URL('/caldav/', origin), { method: 'OPTIONS' });
@@ -103,6 +131,13 @@ try {
 } catch (e) {
   console.error('FAIL  异常:', e.message);
   fails++;
+}
+
+if (issuedToken && ADMIN) {
+  await fetch(`${origin}/admin/users/${issuedToken.userId}/caldav-tokens/${issuedToken.tokenId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${ADMIN}` },
+  }).catch(() => {});
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

@@ -794,64 +794,6 @@
           }
         }
       },
-      "AccountUpdate": {
-        "type": "object",
-        "required": [
-          "account",
-          "password"
-        ],
-        "properties": {
-          "account": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string",
-            "format": "password"
-          },
-          "baseUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "默认 https://jwglxt.sdust.edu.cn"
-          },
-          "verify": {
-            "type": "boolean",
-            "default": true,
-            "description": "先登录验证再落库"
-          }
-        }
-      },
-      "AccountUpdateResult": {
-        "type": "object",
-        "properties": {
-          "ok": {
-            "type": "boolean"
-          },
-          "account": {
-            "type": "string"
-          },
-          "verified": {
-            "type": "boolean"
-          }
-        }
-      },
-      "AccountInfo": {
-        "type": "object",
-        "properties": {
-          "account": {
-            "type": "string",
-            "nullable": true
-          },
-          "baseUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "updatedAt": {
-            "type": "integer",
-            "nullable": true,
-            "description": "Unix 秒"
-          }
-        }
-      },
       "ClientCreate": {
         "type": "object",
         "required": [
@@ -887,6 +829,14 @@
           "public": {
             "type": "boolean",
             "default": false
+          },
+          "userId": {
+            "type": "integer",
+            "description": "必须提供 userId 或 username（二选一）"
+          },
+          "username": {
+            "type": "string",
+            "description": "必须提供 userId 或 username（二选一）"
           }
         }
       },
@@ -918,6 +868,14 @@
           },
           "public": {
             "type": "boolean"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -948,6 +906,167 @@
           "created_at": {
             "type": "integer",
             "description": "Unix 秒"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "account": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "hasServicePassword": {
+            "type": "boolean"
+          },
+          "caldavTokenCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "integer",
+            "description": "Unix 秒"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "description": "Unix 秒"
+          }
+        }
+      },
+      "UserCreate": {
+        "type": "object",
+        "required": [
+          "username",
+          "account",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "2-64 位 A-Z a-z 0-9 . _ -，用于服务登录和 CalDAV 路径"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string",
+            "description": "强智学号/工号"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "教务密码"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "servicePassword": {
+            "type": "string",
+            "format": "password",
+            "description": "服务登录密码，至少 8 位；省略则不能登录 OAuth 授权页"
+          },
+          "verify": {
+            "type": "boolean",
+            "default": true,
+            "description": "先登录教务验证再落库"
+          }
+        }
+      },
+      "UserUpdate": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "servicePassword": {
+            "type": "string",
+            "format": "password",
+            "nullable": true,
+            "description": "传空字符串清除"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "verify": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "CalDavToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "integer"
+          },
+          "revokedAt": {
+            "type": "integer",
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "CalDavTokenCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "description": "只返回这一次，作为 CalDAV Basic 密码"
           }
         }
       }
@@ -1784,76 +1903,6 @@
         }
       }
     },
-    "/admin/account": {
-      "get": {
-        "tags": [
-          "Admin"
-        ],
-        "summary": "查看已保存的教务账号（不含密码）",
-        "security": [
-          {
-            "adminToken": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountInfo"
-                }
-              }
-            }
-          },
-          "Unauthorized": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Admin"
-        ],
-        "summary": "设置/更新教务账号（加密存储）",
-        "security": [
-          {
-            "adminToken": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountUpdateResult"
-                }
-              }
-            }
-          },
-          "BadRequest": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "Unauthorized": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "RateLimited": {
-            "$ref": "#/components/responses/RateLimited"
-          }
-        }
-      }
-    },
     "/admin/clients": {
       "get": {
         "tags": [
@@ -1946,6 +1995,329 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResult"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "用户列表",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "创建用户",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/admin/users/{userId}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "更新用户（账号/密码/服务密码/禁用）",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "删除用户",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResult"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/users/{userId}/caldav-tokens": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "CalDAV token 列表",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalDavToken"
+                  }
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "签发 CalDAV token",
+        "description": "返回的 token 只显示一次，作为 CalDAV Basic 密码。",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalDavTokenCreated"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/admin/users/{userId}/caldav-tokens/{tokenId}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "撤销 CalDAV token",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
           }
         ],

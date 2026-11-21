@@ -210,28 +210,6 @@ const paths = {
     get: dataOp({ summary: '公告', schema: 'MessagesResponse' }),
   },
 
-  '/admin/account': {
-    get: {
-      tags: ['Admin'],
-      summary: '查看已保存的教务账号（不含密码）',
-      security: adminSec,
-      responses: { 200: ok(ref('AccountInfo')), ...errors('Unauthorized') },
-    },
-    put: {
-      tags: ['Admin'],
-      summary: '设置/更新教务账号（加密存储）',
-      security: adminSec,
-      requestBody: {
-        required: true,
-        content: { 'application/json': { schema: ref('AccountUpdate') } },
-      },
-      responses: {
-        200: ok(ref('AccountUpdateResult')),
-        ...errors('BadRequest', 'Unauthorized', 'RateLimited'),
-      },
-    },
-  },
-
   '/admin/clients': {
     get: {
       tags: ['Admin'],
@@ -264,6 +242,106 @@ const paths = {
       summary: '删除客户端',
       security: adminSec,
       parameters: [{ name: 'clientId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: ok(ref('RevokeResult')),
+        ...errors('Unauthorized', 'NotFound'),
+      },
+    },
+  },
+
+  '/admin/users': {
+    get: {
+      tags: ['Admin'],
+      summary: '用户列表',
+      security: adminSec,
+      responses: {
+        200: ok({ type: 'array', items: ref('User') }),
+        ...errors('Unauthorized'),
+      },
+    },
+    post: {
+      tags: ['Admin'],
+      summary: '创建用户',
+      security: adminSec,
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: ref('UserCreate') } },
+      },
+      responses: {
+        200: ok(ref('User')),
+        ...errors('BadRequest', 'Unauthorized', 'RateLimited'),
+      },
+    },
+  },
+
+  '/admin/users/{userId}': {
+    put: {
+      tags: ['Admin'],
+      summary: '更新用户（账号/密码/服务密码/禁用）',
+      security: adminSec,
+      parameters: [{ name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }],
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: ref('UserUpdate') } },
+      },
+      responses: {
+        200: ok(ref('User')),
+        ...errors('BadRequest', 'Unauthorized', 'NotFound', 'RateLimited'),
+      },
+    },
+    delete: {
+      tags: ['Admin'],
+      summary: '删除用户',
+      security: adminSec,
+      parameters: [{ name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }],
+      responses: {
+        200: ok(ref('RevokeResult')),
+        ...errors('Unauthorized', 'NotFound'),
+      },
+    },
+  },
+
+  '/admin/users/{userId}/caldav-tokens': {
+    get: {
+      tags: ['Admin'],
+      summary: 'CalDAV token 列表',
+      security: adminSec,
+      parameters: [{ name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }],
+      responses: {
+        200: ok({ type: 'array', items: ref('CalDavToken') }),
+        ...errors('Unauthorized', 'NotFound'),
+      },
+    },
+    post: {
+      tags: ['Admin'],
+      summary: '签发 CalDAV token',
+      description: '返回的 token 只显示一次，作为 CalDAV Basic 密码。',
+      security: adminSec,
+      parameters: [{ name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }],
+      requestBody: {
+        required: false,
+        content: {
+          'application/json': {
+            schema: { type: 'object', properties: { label: { type: 'string' } } },
+          },
+        },
+      },
+      responses: {
+        200: ok(ref('CalDavTokenCreated')),
+        ...errors('BadRequest', 'Unauthorized', 'NotFound', 'RateLimited'),
+      },
+    },
+  },
+
+  '/admin/users/{userId}/caldav-tokens/{tokenId}': {
+    delete: {
+      tags: ['Admin'],
+      summary: '撤销 CalDAV token',
+      security: adminSec,
+      parameters: [
+        { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } },
+        { name: 'tokenId', in: 'path', required: true, schema: { type: 'integer' } },
+      ],
       responses: {
         200: ok(ref('RevokeResult')),
         ...errors('Unauthorized', 'NotFound'),

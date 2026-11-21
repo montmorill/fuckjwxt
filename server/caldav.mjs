@@ -1,9 +1,9 @@
 // 只读 CalDAV：把课表转成 VEVENT，支持 PROPFIND / REPORT / GET。
-// 认证：Basic（CALDAV_USER + CALDAV_TOKEN）或 OAuth Bearer（jwxt.read）。
+// 认证：Basic（users.username + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
 import { createHash } from 'node:crypto';
 import { config } from './config.mjs';
-import { safeEqual } from './crypto.mjs';
-import { getPrimaryUser } from './db.mjs';
+import { hashToken, safeEqual } from './crypto.mjs';
+import * as db from './db.mjs';
 import { authenticateBearer } from './oauth.mjs';
 import { jwxt } from './jwxt-service.mjs';
 
@@ -17,9 +17,15 @@ const DEFAULT_PERIOD_TIMES = {
   '11-12': ['20:50', '22:30'],
 };
 
-const principalPath = () => `/caldav/principals/${config.caldavUser}/`;
-const homePath = () => `/caldav/calendars/${config.caldavUser}/`;
-const calendarPath = () => `${homePath()}timetable/`;
+function pathsFor(user) {
+  const username = encodeURIComponent(user.username || user.account);
+  const home = `/caldav/calendars/${username}/`;
+  return {
+    principal: `/caldav/principals/${username}/`,
+    home,
+    calendar: `${home}timetable/`,
+  };
+}
 
 const pad = n => String(n).padStart(2, '0');
 const sha1 = s => createHash('sha1').update(String(s)).digest('hex');
@@ -53,23 +59,32 @@ function fold(line) {
   return out.join('\r\n');
 }
 
-const cache = new Map(); // key -> { at, data }
-export function clearCache() { cache.clear(); }
+const cache = new Map(); // `${userId}:${semester}` -> { at, data }
+export function clearCache(userId) {
+  if (userId === undefined || userId === null) { cache.clear(); return; }
+  const prefix = `${userId}:`;
+  for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
+}
 
 // ---------- 认证 ----------
 export async function authenticate(req) {
-  const user = getPrimaryUser();
-  if (!user) return { error: [503, '教务账号未配置'] };
-
   const header = req.headers.authorization || '';
 
-  if (config.caldavToken && /^Basic /i.test(header)) {
+  if (/^Basic /i.test(header)) {
     const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
     const idx = decoded.indexOf(':');
     const username = idx >= 0 ? decoded.slice(0, idx) : '';
     const password = idx >= 0 ? decoded.slice(idx + 1) : '';
-    if (username === config.caldavUser && safeEqual(password, config.caldavToken)) return { user };
-    return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+
+    const user = db.getUserByUsername(username);
+    if (!user || user.disabled) return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+
+    const token = db.getCalDavTokenByHash(hashToken(password));
+    if (!token || token.user_id !== user.id || token.revoked_at) {
+      return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+    }
+    db.touchCalDavToken(token.id);
+    return { user };
   }
 
   if (/^Bearer /i.test(header)) {
@@ -82,7 +97,6 @@ export async function authenticate(req) {
     }
   }
 
-  if (!config.caldavToken) return { error: [503, 'CalDAV 未启用：设置 CALDAV_TOKEN'], scheme: 'Basic' };
   return { error: [401, '需要 Basic 或 Bearer 认证'], scheme: 'Basic' };
 }
 
@@ -171,7 +185,7 @@ function vcalendar(eventLineArrays, name) {
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
-function buildEvents(items, start, semester) {
+function buildEvents(items, start, semester, calendarHref) {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -225,7 +239,7 @@ function buildEvents(items, start, semester) {
       hash,
       uid: `${hash}@jwxt-oauth`,
       summary: item.name,
-      href: `${calendarPath()}${hash}.ics`,
+      href: `${calendarHref}${hash}.ics`,
       etag: `"${sha256(ics).slice(0, 32)}"`,
       ics,
       eventLines,
@@ -244,16 +258,17 @@ async function buildCalendar(user, semesterOverride) {
   const items = await jwxt.timetable(user, { semester });
   const html = await jwxt.calendar(user, semester);
   const start = parseSemesterStart(html, semester, config.caldavSemesterStart);
-  const events = buildEvents(items, start, semester);
+  const paths = pathsFor(user);
+  const events = buildEvents(items, start, semester, paths.calendar);
   const fullIcs = vcalendar(events.map(e => e.eventLines), CALENDAR_NAME);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
 
-  return { semester, start, events, fullIcs, etag, lastModified };
+  return { semester, start, events, fullIcs, etag, lastModified, paths };
 }
 
 async function calendarData(user, semesterOverride) {
-  const key = semesterOverride || config.caldavSemester || 'current';
+  const key = `${user.id}:${semesterOverride || config.caldavSemester || 'current'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
   const data = await buildCalendar(user, semesterOverride);
@@ -271,13 +286,13 @@ function propXml(name, ctx) {
     case 'displayname':
       return `<D:displayname>${xmlEscape(ctx.displayname || '')}</D:displayname>`;
     case 'current-user-principal':
-      return `<D:current-user-principal><D:href>${principalPath()}</D:href></D:current-user-principal>`;
+      return `<D:current-user-principal><D:href>${ctx.paths.principal}</D:href></D:current-user-principal>`;
     case 'principal-url':
-      return `<D:principal-URL><D:href>${principalPath()}</D:href></D:principal-URL>`;
+      return `<D:principal-URL><D:href>${ctx.paths.principal}</D:href></D:principal-URL>`;
     case 'calendar-home-set':
-      return `<C:calendar-home-set><D:href>${homePath()}</D:href></C:calendar-home-set>`;
+      return `<C:calendar-home-set><D:href>${ctx.paths.home}</D:href></C:calendar-home-set>`;
     case 'calendar-user-address-set':
-      return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(config.caldavUser)}@jwxt.local</D:href></C:calendar-user-address-set>`;
+      return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.username || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
     case 'supported-calendar-component-set':
       return '<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>';
     case 'getetag':
@@ -290,7 +305,7 @@ function propXml(name, ctx) {
     case 'calendar-description':
       return '<C:calendar-description>强智教务课表</C:calendar-description>';
     case 'owner':
-      return `<D:owner><D:href>${principalPath()}</D:href></D:owner>`;
+      return `<D:owner><D:href>${ctx.paths.principal}</D:href></D:owner>`;
     case 'supported-report-set':
       return '<D:supported-report-set><D:supported-report><D:report><C:calendar-query/></D:report></D:supported-report><D:supported-report><D:report><C:calendar-multiget/></D:report></D:supported-report></D:supported-report-set>';
     case 'getctag':
@@ -384,13 +399,14 @@ function resolvePath(url) {
   if (!url.pathname.startsWith('/caldav')) return { kind: 'notfound' };
   const parts = url.pathname.replace(/^\/caldav\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   if (parts.length === 0) return { kind: 'root' };
-  if (parts[0] === 'principals' && parts.length === 2 && parts[1] === config.caldavUser) return { kind: 'principal' };
-  if (parts[0] === 'calendars' && parts[1] === config.caldavUser) {
-    if (parts.length === 2) return { kind: 'home' };
-    if (parts.length === 3 && parts[2] === 'timetable') return { kind: 'calendar' };
-    if (parts.length === 3 && parts[2] === 'timetable.ics') return { kind: 'feed' };
+  if (parts[0] === 'principals' && parts.length === 2) return { kind: 'principal', username: parts[1] };
+  if (parts[0] === 'calendars' && parts.length >= 2) {
+    const username = parts[1];
+    if (parts.length === 2) return { kind: 'home', username };
+    if (parts.length === 3 && parts[2] === 'timetable') return { kind: 'calendar', username };
+    if (parts.length === 3 && parts[2] === 'timetable.ics') return { kind: 'feed', username };
     if (parts.length === 4 && parts[2] === 'timetable' && parts[3].endsWith('.ics')) {
-      return { kind: 'event', hash: parts[3].slice(0, -4) };
+      return { kind: 'event', username, hash: parts[3].slice(0, -4) };
     }
   }
   return { kind: 'notfound' };
@@ -407,32 +423,34 @@ async function handlePropfind(req, res, user, path) {
   const deep = depth === '1' || depth === 'infinity';
   const body = await readBody(req);
   const requested = requestedProps(body);
+  const paths = pathsFor(user);
+  const username = user.username || user.account;
 
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user);
 
   const responses = [];
-  const add = (href, ctx) => responses.push(responseXml(href, propsFor(ctx, requested)));
+  const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, username }, requested)));
 
   switch (path.kind) {
     case 'root':
       add('/caldav/', { kind: 'root', displayname: 'CalDAV' });
-      if (deep) add(principalPath(), { kind: 'principal', displayname: config.caldavUser });
+      if (deep) add(paths.principal, { kind: 'principal', displayname: username });
       break;
     case 'principal':
-      add(principalPath(), { kind: 'principal', displayname: config.caldavUser });
-      if (deep) add(homePath(), { kind: 'home', displayname: '日历' });
+      add(paths.principal, { kind: 'principal', displayname: username });
+      if (deep) add(paths.home, { kind: 'home', displayname: '日历' });
       break;
     case 'home':
-      add(homePath(), { kind: 'home', displayname: '日历' });
+      add(paths.home, { kind: 'home', displayname: '日历' });
       if (deep) {
         // 发现阶段不强制生成整张日历，避免首次 PROPFIND 过慢
-        add(calendarPath(), { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal?.etag, lastModified: cal?.lastModified });
+        add(paths.calendar, { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal?.etag, lastModified: cal?.lastModified });
       }
       break;
     case 'calendar':
     case 'feed':
-      add(calendarPath(), { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal.etag, lastModified: cal.lastModified });
+      add(paths.calendar, { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal.etag, lastModified: cal.lastModified });
       if (deep) {
         for (const e of cal.events) add(e.href, { kind: 'event', displayname: e.summary, etag: e.etag, lastModified: cal.lastModified });
       }
@@ -512,6 +530,10 @@ export async function handleCalDav(req, res, url) {
   }
 
   const path = resolvePath(url);
+
+  // 只能访问自己的 principal / calendar
+  const self = auth.user.username || auth.user.account;
+  if (path.username && path.username !== self) return send404(res);
 
   if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path);
   if (method === 'REPORT') return handleReport(req, res, auth.user, path);

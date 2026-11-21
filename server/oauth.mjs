@@ -73,7 +73,7 @@ function issueTokens({ client, user, scopes, withRefresh, familyId }) {
   return out;
 }
 
-export function authorize({ query, user }) {
+export function validateAuthorize(query) {
   const responseType = query.get('response_type');
   if (responseType !== 'code') throw new OAuthError(400, 'unsupported_response_type', 'only code is supported');
 
@@ -99,23 +99,29 @@ export function authorize({ query, user }) {
     throw new OAuthError(400, 'invalid_request', 'public clients must use PKCE S256');
   }
 
-  if (!user) throw new OAuthError(503, 'temporarily_unavailable', 'no jwxt account configured');
+  return { client, redirectUri, state, scopes: requested, challenge, method, responseType };
+}
+
+export function authorize({ query, user }) {
+  const details = validateAuthorize(query);
+  if (!user) throw new OAuthError(503, 'temporarily_unavailable', 'no user logged in');
+  if (user.disabled) throw new OAuthError(403, 'access_denied', 'user disabled');
 
   const code = randomToken(32);
   db.createAuthCode({
     codeHash: hashToken(code),
-    clientId: client.client_id,
+    clientId: details.client.client_id,
     userId: user.id,
-    redirectUri,
-    scopes: requested,
-    codeChallenge: challenge || null,
-    codeChallengeMethod: challenge ? 'S256' : null,
+    redirectUri: details.redirectUri,
+    scopes: details.scopes,
+    codeChallenge: details.challenge || null,
+    codeChallengeMethod: details.challenge ? 'S256' : null,
     expiresAt: now() + config.codeTtl,
   });
 
-  const url = new URL(redirectUri);
+  const url = new URL(details.redirectUri);
   url.searchParams.set('code', code);
-  if (state) url.searchParams.set('state', state);
+  if (details.state) url.searchParams.set('state', details.state);
   return url.toString();
 }
 
@@ -142,7 +148,7 @@ function authorizationCode(req, input) {
   if (db.markAuthCodeUsed(row.code_hash) === 0) throw new OAuthError(400, 'invalid_grant', 'code already used');
 
   const user = db.getUserById(row.user_id);
-  if (!user) throw new OAuthError(400, 'invalid_grant', 'user not found');
+  if (!user || user.disabled) throw new OAuthError(400, 'invalid_grant', 'user not found or disabled');
   const scopes = parseScopes(row.scopes);
   return issueTokens({ client, user, scopes, withRefresh: scopes.includes('offline_access') });
 }
@@ -167,7 +173,7 @@ function refreshTokenGrant(req, input) {
 
   db.revokeRefreshToken(row.token_hash);
   const user = db.getUserById(row.user_id);
-  if (!user) throw new OAuthError(400, 'invalid_grant', 'user not found');
+  if (!user || user.disabled) throw new OAuthError(400, 'invalid_grant', 'user not found or disabled');
   return issueTokens({ client, user, scopes: requested, withRefresh: true, familyId: row.family_id });
 }
 
@@ -175,8 +181,8 @@ function clientCredentialsGrant(req, input) {
   const client = authenticateClient(req, input);
   if (client.public) throw new OAuthError(400, 'unauthorized_client', 'public clients cannot use client_credentials');
 
-  const user = db.getPrimaryUser();
-  if (!user) throw new OAuthError(503, 'temporarily_unavailable', 'no jwxt account configured');
+  const user = db.getUserById(client.user_id);
+  if (!user || user.disabled) throw new OAuthError(503, 'temporarily_unavailable', 'client has no active user');
 
   const allowed = parseScopes(client.scopes).filter(s => s !== 'offline_access');
   const requested = input.scope ? parseScopes(input.scope) : allowed;
@@ -206,7 +212,9 @@ export function authenticateBearer(req) {
 
   const client = db.getClient(row.client_id);
   const user = db.getUserById(row.user_id);
-  if (!client || !user) throw new OAuthError(401, 'invalid_token', 'token subject missing', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
+  if (!client || !user || user.disabled) {
+    throw new OAuthError(401, 'invalid_token', 'token subject missing or disabled', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
+  }
 
   return { token: m[1].trim(), client, user, scopes: parseScopes(row.scopes) };
 }
