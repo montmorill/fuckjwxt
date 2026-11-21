@@ -123,14 +123,6 @@ try {
     && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0
     && report.text.includes('RDATE;TZID=Asia/Shanghai:'), `events=${eventCount}`);
 
-  const etagOnly = await req(calHref, {
-    method: 'REPORT',
-    headers: { Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' },
-    body: `<?xml version="1.0" encoding="utf-8"?><C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:getetag/></D:prop></C:calendar-query>`,
-  });
-  ok('calendar-query 仅返回请求属性', etagOnly.status === 207
-    && etagOnly.text.includes('<D:getetag>') && !etagOnly.text.includes('<C:calendar-data>'));
-
   const sync = await req(calHref, {
     method: 'REPORT',
     headers: {

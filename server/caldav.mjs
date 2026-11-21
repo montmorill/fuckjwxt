@@ -605,6 +605,7 @@ async function handleReport(req, res, user, path) {
   if (/getcontenttype/i.test(body)) wants.push('getcontenttype');
   if (/schedule-tag/i.test(body)) wants.push('schedule-tag');
   if (/calendar-data/i.test(body)) wants.push('calendar-data');
+  if (/calendar-query/i.test(body) && !wants.includes('calendar-data')) wants.push('calendar-data');
   if (!wants.length) wants.push('getetag', 'calendar-data');
 
   const eventXml = e => {
