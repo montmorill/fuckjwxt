@@ -260,9 +260,11 @@ function calendarLabel(user, items) {
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
   const esc = compact ? icsEscapeOppo : icsEscapeRfc;
-  const categoryParts = compact
-    ? ['课表', ...String(item.className || '').split(/[,，]/).map(s => s.trim()).filter(Boolean)]
-    : ['课表', item.className, item.name].filter(Boolean);
+  const splitList = value => String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  const categoryParts = (compact
+    ? ['课表', ...splitList(item.className), ...splitList(item.teacher)]
+    : ['课表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
+  ).filter(Boolean);
   const categories = categoryParts.map(esc).join(',');
   const eventLines = compact
     ? [
