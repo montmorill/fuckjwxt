@@ -47,6 +47,15 @@ export const config = {
   codeTtl: Number(process.env.AUTH_CODE_TTL || 60),                 // 秒
   sessionTtlMs: Number(process.env.JWXT_SESSION_TTL_MS || 900000),  // 15 分钟
   adminRateLimit: Number(process.env.ADMIN_RATE_LIMIT || 120),      // 每分钟
+
+  // CalDAV（只读课表）
+  caldavUser: process.env.CALDAV_USER || 'caldav',
+  caldavToken: process.env.CALDAV_TOKEN || '',
+  caldavTimezone: process.env.CALDAV_TIMEZONE || 'Asia/Shanghai',
+  caldavSemester: process.env.CALDAV_SEMESTER || '',
+  caldavSemesterStart: process.env.CALDAV_SEMESTER_START || '',
+  caldavPeriodTimes: process.env.CALDAV_PERIOD_TIMES || '',
+  caldavCacheMs: Number(process.env.CALDAV_CACHE_MS || 300000),     // 5 分钟
 };
 
 export const SCOPES = ['jwxt.read', 'jwxt.profile', 'offline_access'];

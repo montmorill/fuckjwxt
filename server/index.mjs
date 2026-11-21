@@ -6,6 +6,7 @@ import { encrypt, hashToken, randomToken, safeEqual } from './crypto.mjs';
 import * as oauth from './oauth.mjs';
 import { handlers as apiHandlers, ApiError } from './api.mjs';
 import { verifyCredentials, clearSession, clearAllSessions } from './jwxt-service.mjs';
+import { handleCalDav, clearCache as clearCalDavCache } from './caldav.mjs';
 
 class HttpError extends Error {
   constructor(status, error, description = '', headers = {}) {
@@ -226,6 +227,7 @@ add('PUT', '/admin/account', async ({ req }) => {
     baseUrl,
   });
   clearSession(user.id);
+  clearCalDavCache();
   return { ok: true, account: user.account, verified: body.verify !== false };
 });
 
@@ -330,12 +332,23 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   applyCors(req, res);
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, baseHeaders());
-    return res.end();
-  }
-
   try {
+    // CalDAV 固定入口
+    if (url.pathname === '/.well-known/caldav' && (req.method === 'GET' || req.method === 'HEAD')) {
+      res.writeHead(301, { ...baseHeaders(), Location: '/caldav/' });
+      return res.end();
+    }
+    if (url.pathname === '/caldav' || url.pathname.startsWith('/caldav/')
+        || (req.method === 'PROPFIND' && url.pathname === '/')) {
+      await handleCalDav(req, res, url);
+      return;
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, baseHeaders());
+      return res.end();
+    }
+
     const m = match(req.method, url.pathname);
     if (!m) throw new HttpError(404, 'not_found', 'not found');
     const result = await m.route.handler({
@@ -376,6 +389,7 @@ server.listen(config.port, () => {
   console.log(`jwxt-oauth listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
   console.log(`scopes: ${SCOPES.join(', ')}`);
+  console.log(`caldav: ${config.caldavToken ? `${config.issuer}/caldav/ (user=${config.caldavUser})` : 'disabled (CALDAV_TOKEN 未设置)'}`);
 });
 
 function shutdown() {

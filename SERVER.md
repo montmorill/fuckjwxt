@@ -14,6 +14,7 @@
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
 - 管理 API + 本地 CLI。
 - 自带 **OpenAPI 3.0** 描述（`GET /openapi.json`），可直接导入 Postman / Apifox / Swagger Editor。
+- **只读 CalDAV**：课表可直接添加到 iOS/Android/Thunderbird 日历（`CALDAV_TOKEN` 启用），见 [`CALDAV.md`](CALDAV.md)。
 - 单账号自动同意（见“安全模型”）。
 
 ## 快速开始

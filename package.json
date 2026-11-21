@@ -12,6 +12,7 @@
     "admin": "node --no-warnings scripts/admin.mjs",
     "openapi": "node --no-warnings scripts/gen-openapi.mjs",
     "openapi:check": "node --no-warnings scripts/check-openapi.mjs",
-    "hooks": "git config core.hooksPath .githooks"
+    "hooks": "git config core.hooksPath .githooks",
+    "test:caldav": "node --no-warnings scripts/test-caldav.mjs"
   }
 }

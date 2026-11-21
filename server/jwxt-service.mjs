@@ -1,4 +1,4 @@
-import { connect, getSemesters, getWeekRange, getTimetable, getGrades, getExams, getTextbooks, getPlanCourses, getStudentInfo, getMessages, getNotices } from '../tools/jwxt_api.mjs';
+import { connect, getSemesters, getWeekRange, getTimetable, getGrades, getExams, getTextbooks, getPlanCourses, getStudentInfo, getMessages, getNotices, getCalendar } from '../tools/jwxt_api.mjs';
 import { request } from '../tools/jwxt.mjs';
 import { config } from './config.mjs';
 import { decrypt } from './crypto.mjs';
@@ -79,6 +79,11 @@ export const jwxt = {
   semesters: user => withSession(user, s => getSemesters(s)),
   weekRange: (user, semester) => withSession(user, s => getWeekRange(s, semester)),
   timetable: (user, opts) => withSession(user, s => getTimetable(s, opts)),
+  calendar: (user, semester) => withSession(user, async s => {
+    const html = await getCalendar(s, semester);
+    if (!/第1周/.test(html)) throw new Error('教学周历无效（可能会话过期）');
+    return html;
+  }),
   grades: (user, opts) => withSession(user, s => getGrades(s, opts)),
   exams: (user, opts) => withSession(user, s => getExams(s, opts)),
   textbooks: user => withSession(user, s => getTextbooks(s)),

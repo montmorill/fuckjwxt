@@ -9,6 +9,7 @@
 - [`research/MOBILE.md`](research/MOBILE.md) —— 移动端 `app.do` 探测（本部署未授权）
 - [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
+- [`CALDAV.md`](CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
 
 ## 目录
 
