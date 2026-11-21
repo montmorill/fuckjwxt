@@ -8,6 +8,7 @@
 - [`research/API.md`](research/API.md) —— 登录后可用接口清单、参数、返回结构
 - [`research/MOBILE.md`](research/MOBILE.md) —— 移动端 `app.do` 探测（本部署未授权）
 - [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
+- [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 
 ## 目录
 
@@ -29,6 +30,15 @@ npm start
 ```
 
 详细用法见 [`SERVER.md`](SERVER.md)。
+
+## 开发
+
+```bash
+npm run hooks          # 配置 .githooks/pre-commit（每个 clone 执行一次）
+npm run openapi:check  # 手动校验 openapi.json 是否最新
+```
+
+`pre-commit` 只在 `server/openapi.mjs`、`openapi.base.json`、`openapi.json` 被 staged 时运行，不会拖慢其他提交。
 
 ## 安全
 

@@ -13,6 +13,7 @@
 - 访问令牌 1 小时、刷新令牌 30 天；令牌只存 SHA-256 哈希。
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
 - 管理 API + 本地 CLI。
+- 自带 **OpenAPI 3.0** 描述（`GET /openapi.json`），可直接导入 Postman / Apifox / Swagger Editor。
 - 单账号自动同意（见“安全模型”）。
 
 ## 快速开始
@@ -125,6 +126,20 @@ curl -sS -X POST http://localhost:8787/oauth/revoke \
 ```
 GET /.well-known/oauth-authorization-server
 ```
+
+## OpenAPI
+
+```
+GET /openapi.json
+```
+
+- **从路由元数据生成**：`server/openapi.mjs` 定义每个路径/方法/scope/参数，`openapi.base.json` 保存 schema 与 security 基座。
+- 生成：`npm run openapi`（可用 `ISSUER=https://your.domain npm run openapi` 生成外部地址）。
+- 校验：`npm run openapi:check` —— 仓库里的 `openapi.json` 必须与源码生成结果完全一致，否则退出非 0（适合放 CI / 提交前钩子）。
+- 本地钩子：`npm run hooks` 配置 `.githooks/pre-commit`；OpenAPI 相关文件被 staged 时自动校验（改了源但没 stage 生成的 spec 也会拦下）。
+- 服务端启动时用同一份元数据构建 spec；并校验“实际注册的每条路由都必须有 OpenAPI 条目”，漏了会直接启动失败。
+- 覆盖：OAuth 端点、数据 API、管理 API、错误响应、scope、请求/响应 schema。
+- 可导入 Postman / Apifox / Swagger Editor。
 
 ## Scope
 

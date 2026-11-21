@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { config, SCOPES } from './config.mjs';
+import { buildOpenApi, routeKeys as specRouteKeys } from './openapi.mjs';
 import { db, getPrimaryUser, upsertPrimaryUser, createClient, listClients, deleteClient, cleanup } from './db.mjs';
 import { encrypt, hashToken, randomToken, safeEqual } from './crypto.mjs';
 import * as oauth from './oauth.mjs';
@@ -126,12 +127,20 @@ const validateScopes = scopes => {
 };
 
 // ---------- routes: meta ----------
+const openapi = buildOpenApi(config.issuer);
+
 add('GET', '/', async () => ({
   name: 'jwxt-oauth',
   issuer: config.issuer,
   metadata: `${config.issuer}/.well-known/oauth-authorization-server`,
+  openapi: `${config.issuer}/openapi.json`,
   api: ['/api/me', '/api/profile', '/api/semesters', '/api/timetable', '/api/grades', '/api/exams', '/api/textbooks'],
 }));
+
+add('GET', '/openapi.json', async ({ res }) => {
+  res.writeHead(200, { ...baseHeaders(), 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(openapi));
+});
 
 add('GET', '/healthz', async () => ({ status: 'ok', time: new Date().toISOString() }));
 
@@ -288,6 +297,20 @@ add('DELETE', '/admin/clients/:clientId', async ({ req, params }) => {
   if (!changed) throw new HttpError(404, 'not_found', 'client not found');
   return { ok: true };
 });
+
+// ---------- OpenAPI 覆盖校验 ----------
+// 实际注册的路由必须都能在 openapi.mjs 的 routeMeta 里找到，防止文档漏接口。
+const toSpecPath = parts => '/' + parts.join('/').replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+const actualRouteKeys = new Set(routes.map(r => `${r.method} ${toSpecPath(r.parts)}`));
+const specKeys = new Set(specRouteKeys);
+const missingInSpec = [...actualRouteKeys].filter(k => !specKeys.has(k));
+if (missingInSpec.length) {
+  throw new Error(`OpenAPI 缺少路由: ${missingInSpec.join(', ')}`);
+}
+const notRegistered = [...specKeys].filter(k => !actualRouteKeys.has(k));
+if (notRegistered.length) {
+  console.warn(`[openapi] 以下路径只写在文档里、没有注册: ${notRegistered.join(', ')}`);
+}
 
 // ---------- server ----------
 function errorResponse(res, err) {

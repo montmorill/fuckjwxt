@@ -1,0 +1,1973 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "jwxt-oauth API",
+    "version": "0.1.0",
+    "description": "把强智教务账号封装成 OAuth2 数据 API。单账号；授权页自动同意。\n\n默认地址是 http://localhost:8787，部署后请把 servers 和 securitySchemes 里的地址改成实际 ISSUER。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8787",
+      "description": "当前部署地址"
+    }
+  ],
+  "tags": [
+    {
+      "name": "OAuth",
+      "description": "OAuth2 端点"
+    },
+    {
+      "name": "JWXT",
+      "description": "受 OAuth2 保护的教务数据"
+    },
+    {
+      "name": "Admin",
+      "description": "管理接口（ADMIN_TOKEN）"
+    },
+    {
+      "name": "Meta",
+      "description": "健康检查与元数据"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "oauth2AuthCode": {
+        "type": "oauth2",
+        "description": "授权码 + PKCE；适合有前端回调的客户端",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "http://localhost:8787/oauth/authorize",
+            "tokenUrl": "http://localhost:8787/oauth/token",
+            "refreshUrl": "http://localhost:8787/oauth/token",
+            "scopes": {
+              "jwxt.read": "课表/成绩/考试/教材/培养方案/消息/公告",
+              "jwxt.profile": "学籍基本信息（含 PII）",
+              "offline_access": "签发 refresh token"
+            }
+          }
+        }
+      },
+      "oauth2ClientCredentials": {
+        "type": "oauth2",
+        "description": "机器对机器；适合服务端脚本",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "http://localhost:8787/oauth/token",
+            "scopes": {
+              "jwxt.read": "课表/成绩/考试/教材/培养方案/消息/公告",
+              "jwxt.profile": "学籍基本信息（含 PII）"
+            }
+          }
+        }
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque"
+      },
+      "adminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "值为 ADMIN_TOKEN；也接受 X-Admin-Token 头"
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "请求错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "未认证 / 令牌无效",
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "scope 不足",
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "限流",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UpstreamError": {
+        "description": "教务系统请求失败",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "服务暂不可用（例如未配置账号）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "invalid_token"
+          },
+          "error_description": {
+            "type": "string",
+            "example": "token expired"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TokenRequest": {
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "authorization_code",
+              "refresh_token",
+              "client_credentials"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "authorization_code 时必填"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "authorization_code 时必填，必须与授权请求一致"
+          },
+          "code_verifier": {
+            "type": "string",
+            "description": "PKCE verifier"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "refresh_token 时必填"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "机密客户端必填；也可用 HTTP Basic"
+          },
+          "scope": {
+            "type": "string",
+            "description": "可选；不能超出客户端允许范围"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expires_in": {
+            "type": "integer",
+            "example": 3600
+          },
+          "scope": {
+            "type": "string",
+            "example": "jwxt.read offline_access"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "仅当 scope 含 offline_access 且非 client_credentials 时返回"
+          }
+        }
+      },
+      "RevokeResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "sub": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        }
+      },
+      "StudentProfile": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "college": {
+            "type": "string",
+            "nullable": true
+          },
+          "major": {
+            "type": "string",
+            "nullable": true
+          },
+          "className": {
+            "type": "string",
+            "nullable": true
+          },
+          "grade": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StudentProfile"
+          }
+        }
+      },
+      "Semester": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "example": "2026-2027-1"
+          },
+          "label": {
+            "type": "string",
+            "example": "2026-2027-1"
+          },
+          "selected": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SemestersResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Semester"
+            }
+          }
+        }
+      },
+      "WeekRange": {
+        "type": "object",
+        "properties": {
+          "qszc": {
+            "type": "integer",
+            "example": 1
+          },
+          "jszc": {
+            "type": "integer",
+            "example": 20
+          }
+        }
+      },
+      "WeekRangeResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WeekRange"
+          }
+        }
+      },
+      "TimetableItem": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "description": "1=周一 … 7=周日"
+          },
+          "period": {
+            "type": "string",
+            "example": "第一大节 (01、02小节)"
+          },
+          "name": {
+            "type": "string",
+            "example": "高等数学(A)（2-1）"
+          },
+          "teacher": {
+            "type": "string",
+            "example": "刘晓妍"
+          },
+          "timeText": {
+            "type": "string",
+            "example": "4,6,8,10,12周[1-2节]"
+          },
+          "weeks": {
+            "type": "string",
+            "example": "4,6,8,10,12"
+          },
+          "periods": {
+            "type": "string",
+            "example": "1-2节"
+          },
+          "location": {
+            "type": "string",
+            "example": "1号教学楼（济南）(1-311)"
+          },
+          "courseCode": {
+            "type": "string",
+            "example": "230011070305"
+          },
+          "className": {
+            "type": "string",
+            "example": "软件工程*2026-1-3"
+          },
+          "students": {
+            "type": "string",
+            "example": "88"
+          },
+          "examType": {
+            "type": "string",
+            "example": "考试"
+          },
+          "hours": {
+            "type": "string",
+            "example": "10.0"
+          },
+          "rawHtml": {
+            "type": "string",
+            "description": "详情块原始内 HTML"
+          },
+          "rawText": {
+            "type": "string",
+            "description": "去标签/解实体后的文本"
+          }
+        }
+      },
+      "TimetableResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimetableItem"
+            }
+          }
+        }
+      },
+      "GradeItem": {
+        "type": "object",
+        "description": "字段随强智版本/学校略有差异，这里列出已知字段，其余字段保留。",
+        "additionalProperties": true,
+        "properties": {
+          "xnxqid": {
+            "type": "string"
+          },
+          "kch": {
+            "type": "string"
+          },
+          "kc_mc": {
+            "type": "string"
+          },
+          "ksdw": {
+            "type": "string"
+          },
+          "zcjstr": {
+            "type": "string"
+          },
+          "zcj": {
+            "type": "string"
+          },
+          "kz": {
+            "type": "string"
+          },
+          "jx0404id": {
+            "type": "string"
+          },
+          "xs0101id": {
+            "type": "string"
+          },
+          "cj0708id": {
+            "type": "string"
+          }
+        }
+      },
+      "GradesResult": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "count": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradeItem"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "tjsj": {
+                "type": "string"
+              },
+              "pjxfjdts": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "GradesResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GradesResult"
+          }
+        }
+      },
+      "ExamItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "xnxq01id": {
+            "type": "string"
+          },
+          "kch": {
+            "type": "string"
+          },
+          "kc_mc": {
+            "type": "string"
+          },
+          "kszc": {
+            "type": "string"
+          },
+          "ksxq": {
+            "type": "string"
+          },
+          "ksjc": {
+            "type": "string"
+          },
+          "js_mc": {
+            "type": "string"
+          },
+          "ks_mc": {
+            "type": "string"
+          },
+          "kssj": {
+            "type": "string"
+          },
+          "ksxxsj": {
+            "type": "string"
+          },
+          "jkls": {
+            "type": "string"
+          },
+          "rownum_": {
+            "type": "integer"
+          }
+        }
+      },
+      "ExamsResult": {
+        "type": "object",
+        "properties": {
+          "final": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExamItem"
+            }
+          },
+          "courseEnd": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExamItem"
+            }
+          }
+        }
+      },
+      "ExamsResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExamsResult"
+          }
+        }
+      },
+      "Textbook": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "rownum_": {
+            "type": "integer"
+          },
+          "xnxq01id": {
+            "type": "string"
+          },
+          "kch": {
+            "type": "string"
+          },
+          "kcmc": {
+            "type": "string"
+          },
+          "jcmc": {
+            "type": "string"
+          },
+          "jczz": {
+            "type": "string"
+          },
+          "cbsmc": {
+            "type": "string"
+          },
+          "isbn": {
+            "type": "string"
+          },
+          "dmmc": {
+            "type": "string"
+          },
+          "dgcs": {
+            "type": "integer"
+          }
+        }
+      },
+      "TextbooksResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Textbook"
+            }
+          }
+        }
+      },
+      "PlanCourse": {
+        "type": "object",
+        "properties": {
+          "zdjxjhxqid": {
+            "type": "string"
+          },
+          "kch": {
+            "type": "string"
+          },
+          "kcmc": {
+            "type": "string"
+          },
+          "xf": {
+            "type": "number"
+          },
+          "kkxq": {
+            "type": "string"
+          },
+          "rownum_": {
+            "type": "integer"
+          }
+        }
+      },
+      "PlanCoursesResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanCourse"
+            }
+          }
+        }
+      },
+      "MessageItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "消息/公告字段随学校配置略有差异"
+      },
+      "MessagesResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MessageItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "OAuthMetadata": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "revocation_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": "string"
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code_challenge_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AccountUpdate": {
+        "type": "object",
+        "required": [
+          "account",
+          "password"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "默认 https://jwglxt.sdust.edu.cn"
+          },
+          "verify": {
+            "type": "boolean",
+            "default": true,
+            "description": "先登录验证再落库"
+          }
+        }
+      },
+      "AccountUpdateResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "account": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AccountInfo": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unix 秒"
+          }
+        }
+      },
+      "ClientCreate": {
+        "type": "object",
+        "required": [
+          "name",
+          "redirectUris"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "必须是 https；localhost/127.0.0.1 允许 http；不能带 fragment"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "jwxt.read",
+                "jwxt.profile",
+                "offline_access"
+              ]
+            },
+            "default": [
+              "jwxt.read"
+            ]
+          },
+          "public": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "ClientCreated": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true,
+            "description": "只返回这一次；public=true 时为 null"
+          },
+          "name": {
+            "type": "string"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "public": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Client": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "integer",
+            "description": "Unix 秒"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "服务信息",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "健康检查",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "本 OpenAPI 文档",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "OAuth2 Authorization Server Metadata",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "授权端点（Authorization Code + PKCE）",
+        "description": "单账号模式：不弹确认页，直接 302 回 redirect_uri 并附带 code。公开客户端必须使用 PKCE S256。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "code"
+              ]
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "jwxt.read offline_access"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "S256"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "重定向回 redirect_uri，query 含 code 和原 state",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "令牌端点",
+        "description": "支持 authorization_code、refresh_token、client_credentials。客户端认证可用 HTTP Basic 或表单 client_id/client_secret；公开客户端只能放在表单里。",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/oauth/revoke": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "撤销 access/refresh token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "token_type_hint": {
+                    "type": "string",
+                    "enum": [
+                      "access_token",
+                      "refresh_token"
+                    ]
+                  },
+                  "client_id": {
+                    "type": "string"
+                  },
+                  "client_secret": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResult"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/oauth/userinfo": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "当前令牌对应的用户",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "当前令牌信息",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "学籍基本信息（含 PII）",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.profile"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.profile"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/semesters": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "学期列表",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SemestersResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/week-range": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "该学期的教学周范围",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-2027-1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekRangeResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/timetable": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "课表",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-2027-1"
+          },
+          {
+            "name": "week",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimetableResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/grades": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "成绩",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-2027-1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradesResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/exams": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "考试安排（期末 + 结课）",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-2027-1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamsResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/textbooks": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "教材",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextbooksResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/courses/plan": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "培养方案课程清单",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCoursesResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/messages": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "消息通知",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagesResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/notices": {
+      "get": {
+        "tags": [
+          "JWXT"
+        ],
+        "summary": "公告",
+        "security": [
+          {
+            "oauth2AuthCode": [
+              "jwxt.read"
+            ]
+          },
+          {
+            "oauth2ClientCredentials": [
+              "jwxt.read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagesResponse"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "Forbidden": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "UpstreamError": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "Unavailable": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/admin/account": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "查看已保存的教务账号（不含密码）",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountInfo"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "设置/更新教务账号（加密存储）",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountUpdateResult"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/admin/clients": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "客户端列表",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Client"
+                  }
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "注册客户端",
+        "description": "返回的 client_secret 只显示一次。public=true 表示公开客户端，此时不返回 secret，且授权时必须用 PKCE。",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientCreated"
+                }
+              }
+            }
+          },
+          "BadRequest": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "RateLimited": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/admin/clients/{clientId}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "删除客户端",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResult"
+                }
+              }
+            }
+          },
+          "Unauthorized": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "NotFound": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  }
+}

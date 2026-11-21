@@ -1,0 +1,23 @@
+#!/bin/sh
+# OpenAPI 一致性检查。只在 OpenAPI 源文件/spec 被 staged 时运行。
+set -u
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+echo "$staged" | grep -qE '^(server/openapi\.mjs|openapi\.base\.json|openapi\.json)$' || exit 0
+
+# 改了源文件但没把生成结果 stage 进去
+if echo "$staged" | grep -qE '^(server/openapi\.mjs|openapi\.base\.json)$' \
+   && ! echo "$staged" | grep -q '^openapi\.json$'; then
+  echo "❌ openapi 源文件有改动，但 openapi.json 没有 staged。"
+  echo "   运行 npm run openapi，然后 git add openapi.json"
+  exit 1
+fi
+
+if ! node --no-warnings scripts/check-openapi.mjs; then
+  echo ""
+  echo "❌ openapi.json 与源码不一致。"
+  echo "   运行 npm run openapi，然后 git add openapi.json"
+  exit 1
+fi

@@ -9,6 +9,9 @@
   },
   "scripts": {
     "start": "node --no-warnings server/index.mjs",
-    "admin": "node --no-warnings scripts/admin.mjs"
+    "admin": "node --no-warnings scripts/admin.mjs",
+    "openapi": "node --no-warnings scripts/gen-openapi.mjs",
+    "openapi:check": "node --no-warnings scripts/check-openapi.mjs",
+    "hooks": "git config core.hooksPath .githooks"
   }
 }

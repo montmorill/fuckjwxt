@@ -154,6 +154,12 @@ try {
 
   const meta = await get('/.well-known/oauth-authorization-server');
   ok('metadata', meta.status === 200 && meta.body.issuer === BASE && meta.body.code_challenge_methods_supported.includes('S256'));
+
+  const spec = await get('/openapi.json');
+  ok('openapi document', spec.status === 200
+    && String(spec.body.openapi || '').startsWith('3.')
+    && Boolean(spec.body.paths?.['/api/timetable'])
+    && Boolean(spec.body.components?.securitySchemes?.oauth2AuthCode));
 } finally {
   for (const id of created) {
     await fetch(`${BASE}/admin/clients/${encodeURIComponent(id)}`, { method: 'DELETE', headers: admin }).catch(() => {});
