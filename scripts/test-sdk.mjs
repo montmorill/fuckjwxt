@@ -34,9 +34,9 @@ const del = p => fetch(BASE + p, { method: 'DELETE', headers: admin });
 
 let clientId = null;
 try {
-  // 用户：优先用测试账号 caldav，没有就用 .env 里的真实账号创建一个
+  // 用户：直接用第一个测试用户，没有就用 .env 里的真实账号创建一个
   const users = await get('/admin/users');
-  let primary = Array.isArray(users) ? users.find(u => u.username === 'caldav') : null;
+  let primary = Array.isArray(users) ? users[0] : null;
   if (!primary) {
     const account = process.env.JWXT_ACCOUNT;
     const password = process.env.JWXT_PASSWORD;
@@ -45,7 +45,6 @@ try {
       process.exit(1);
     }
     primary = await post('/admin/users', {
-      username: 'caldav',
       displayName: 'caldav',
       account,
       password,

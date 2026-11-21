@@ -44,26 +44,22 @@ const args = parseArgs(rest);
 switch (cmd) {
   case 'add-user': {
     const account = String(args.account || '').trim();
-    const username = String(args.username || account).trim();
     const password = String(args.password || '');
     const baseUrl = args['base-url'] || null;
-    const displayName = args['display-name'] || username;
+    const displayName = args['display-name'] || account;
     const servicePassword = args['service-password'] || null;
     const caldavSemester = args['caldav-semester'] !== undefined
       ? (String(args['caldav-semester']).trim() || null)
       : null;
     if (!account || !password) throw new Error('需要 --account --password');
-    if (!/^[A-Za-z0-9._-]{2,64}$/.test(username)) throw new Error('username 只能包含 A-Z a-z 0-9 . _ -，长度 2-64；可省略 --username 直接使用学号');
     if (servicePassword !== null && String(servicePassword).length < 8) throw new Error('--service-password 至少 8 位');
     if (caldavSemester && !/^\d{4}-\d{4}-[12]$/.test(caldavSemester)) throw new Error('--caldav-semester 格式应为 2026-2027-1');
-    if (db.getUserByUsername(username)) throw new Error('username 已存在');
     if (db.getUserByAccount(account)) throw new Error('account 已存在');
     if (!args['no-verify']) {
       await verifyCredentials({ account, password, baseUrl });
       console.log('账号密码校验通过');
     }
     const user = db.createUser({
-      username,
       displayName,
       account,
       passwordEnc: encrypt(password),
@@ -73,7 +69,6 @@ switch (cmd) {
     });
     console.log(JSON.stringify({
       id: user.id,
-      username: user.username,
       account: user.account,
       hasServicePassword: Boolean(user.service_password_hash),
     }, null, 2));
@@ -82,7 +77,6 @@ switch (cmd) {
   case 'list-users': {
     console.table(db.listUsers().map(u => ({
       id: u.id,
-      username: u.username,
       account: u.account,
       disabled: Boolean(u.disabled),
       servicePassword: Boolean(u.service_password_hash),
@@ -92,18 +86,14 @@ switch (cmd) {
     break;
   }
   case 'set-user': {
-    const id = Number(args._[0]);
-    if (!id) throw new Error('需要 user id');
-    const user = db.getUserById(id);
+    const key = String(args._[0] || '').trim();
+    if (!key) throw new Error('需要 user id 或学号');
+    const user = db.getUserByAccount(key)
+      || (/^\d+$/.test(key) ? db.getUserById(Number(key)) : null);
     if (!user) throw new Error('用户不存在');
-    const username = args.username !== undefined ? String(args.username).trim() : user.username;
+    const id = user.id;
     const account = args.account !== undefined ? String(args.account).trim() : user.account;
     const baseUrl = args['base-url'] !== undefined ? args['base-url'] : user.base_url;
-    if (args.username !== undefined) {
-      if (!/^[A-Za-z0-9._-]{2,64}$/.test(username)) throw new Error('username 不合法');
-      const other = db.getUserByUsername(username);
-      if (other && other.id !== id) throw new Error('username 已存在');
-    }
     if (args.account !== undefined) {
       const other = db.getUserByAccount(account);
       if (other && other.id !== id) throw new Error('account 已存在');
@@ -139,7 +129,6 @@ switch (cmd) {
     }
 
     const updated = db.updateUser(id, {
-      username,
       displayName: args['display-name'] !== undefined ? String(args['display-name']) : user.display_name,
       account,
       passwordEnc,
@@ -149,7 +138,7 @@ switch (cmd) {
       disabled,
     });
     if (args['service-password'] !== undefined || disabled) db.deleteUserSessions(id);
-    console.log(`已更新 #${updated.id} ${updated.username}（disabled=${Boolean(updated.disabled)}）`);
+    console.log(`已更新 #${updated.id} ${updated.account}（disabled=${Boolean(updated.disabled)}）`);
     break;
   }
   case 'del-user': {
@@ -212,10 +201,10 @@ switch (cmd) {
     const clientId = 'qz_' + randomToken(12);
     const secret = isPublic ? null : randomToken(32);
 
-    if (!args.user) throw new Error('需要 --user <id|username>');
-    const owner = /^\d+$/.test(String(args.user))
-      ? db.getUserById(Number(args.user))
-      : db.getUserByUsername(String(args.user));
+    if (!args.user) throw new Error('需要 --user <id|account>');
+    const userArg = String(args.user);
+    const owner = db.getUserByAccount(userArg)
+      || (/^\d+$/.test(userArg) ? db.getUserById(Number(userArg)) : null);
     if (!owner) throw new Error('--user 不存在');
     const userId = owner.id;
 
@@ -227,14 +216,14 @@ switch (cmd) {
       client_id: clientId,
       client_secret: secret,
       name, redirect_uris: args.redirect, scopes, public: isPublic,
-      user_id: userId, username: owner.username,
+      user_id: userId, account: owner.account,
     }, null, 2));
     console.log('\nclient_secret 只显示这一次，请立即保存。');
     break;
   }
   case 'list-clients': {
     console.table(db.listClients().map(c => ({
-      client_id: c.client_id, name: c.name, username: c.username,
+      client_id: c.client_id, name: c.name, account: c.account,
       scopes: c.scopes, public: Boolean(c.public), redirect_uris: c.redirect_uris,
     })));
     break;
@@ -249,14 +238,14 @@ switch (cmd) {
     console.log(`用法:
   node scripts/admin.mjs gen-key
   node scripts/admin.mjs gen-token
-  node scripts/admin.mjs add-user --account <学号> --password <密码> [--username <名>] [--service-password <密码>] [--display-name <名>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
+  node scripts/admin.mjs add-user --account <学号> --password <密码> [--service-password <密码>] [--display-name <名>] [--base-url <url>] [--caldav-semester 2026-2027-1] [--no-verify]
   node scripts/admin.mjs list-users
-  node scripts/admin.mjs set-user <id> [--username <名>] [--account <学号>] [--password <密码>] [--service-password <密码>] [--display-name <名>] [--caldav-semester 2026-2027-1] [--disabled true|false] [--no-verify]
+  node scripts/admin.mjs set-user <id|学号> [--account <学号>] [--password <密码>] [--service-password <密码>] [--display-name <名>] [--caldav-semester 2026-2027-1] [--disabled true|false] [--no-verify]
   node scripts/admin.mjs del-user <id>
   node scripts/admin.mjs add-caldav-token <user_id> [--label <标签>]
   node scripts/admin.mjs list-caldav-tokens <user_id>
   node scripts/admin.mjs del-caldav-token <user_id> <token_id>
-  node scripts/admin.mjs add-client --name <名称> --redirect <uri> [--redirect <uri2>] [--scopes jwxt.read,offline_access] [--public] [--user <id|username>]
+  node scripts/admin.mjs add-client --name <名称> --redirect <uri> [--redirect <uri2>] [--scopes jwxt.read,offline_access] [--public] [--user <id|account>]
   node scripts/admin.mjs list-clients
   node scripts/admin.mjs del-client <client_id>`);
     process.exit(cmd ? 1 : 0);

@@ -1,5 +1,5 @@
 // 服务自身登录会话 + 登录/授权确认页。
-// 与教务账号分离：用户名是 users.username，密码是 service_password_hash（scrypt）。
+// 与教务账号一致：登录名是学号（users.account），密码是 service_password_hash（scrypt）。
 import { config } from './config.mjs';
 import * as db from './db.mjs';
 import { randomToken, hashToken, safeEqual, now } from './crypto.mjs';
@@ -98,18 +98,18 @@ const fails = new Map();
 const WINDOW_MS = 15 * 60_000;
 const MAX_FAILS = 10;
 
-function failKey(ip, username) { return `${ip}|${String(username || '').toLowerCase()}`; }
+function failKey(ip, account) { return `${ip}|${String(account || '').toLowerCase()}`; }
 
-export function loginAllowed(ip, username) {
-  const key = failKey(ip, username);
+export function loginAllowed(ip, account) {
+  const key = failKey(ip, account);
   const entry = fails.get(key);
   if (!entry) return true;
   if (entry.reset < Date.now()) { fails.delete(key); return true; }
   return entry.count < MAX_FAILS;
 }
 
-export function recordLoginFailure(ip, username) {
-  const key = failKey(ip, username);
+export function recordLoginFailure(ip, account) {
+  const key = failKey(ip, account);
   const entry = fails.get(key);
   if (!entry || entry.reset < Date.now()) {
     fails.set(key, { count: 1, reset: Date.now() + WINDOW_MS });
@@ -118,8 +118,8 @@ export function recordLoginFailure(ip, username) {
   entry.count++;
 }
 
-export function clearLoginFailures(ip, username) {
-  fails.delete(failKey(ip, username));
+export function clearLoginFailures(ip, account) {
+  fails.delete(failKey(ip, account));
 }
 
 setInterval(() => {
@@ -145,7 +145,7 @@ const pageStyle = `
   .muted{color:#6b7280;font-size:12px;margin-top:18px}
 `;
 
-export function renderLoginPage({ csrf, next, error = '', username = '' }) {
+export function renderLoginPage({ csrf, next, error = '', account = '' }) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>登录 · jwxt-oauth</title><style>${pageStyle}</style></head><body>
@@ -156,8 +156,8 @@ export function renderLoginPage({ csrf, next, error = '', username = '' }) {
   <form method="post" action="/login" autocomplete="on">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <input type="hidden" name="next" value="${htmlEscape(next)}">
-    <label for="username">用户名</label>
-    <input id="username" name="username" type="text" value="${htmlEscape(username)}" autocomplete="username" required>
+    <label for="account">学号</label>
+    <input id="account" name="account" type="text" value="${htmlEscape(account)}" autocomplete="username" required>
     <label for="password">服务密码</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <div class="actions"><button class="primary" type="submit">登录</button></div>
@@ -183,7 +183,7 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
 <title>授权 · ${htmlEscape(client.name)}</title><style>${pageStyle}</style></head><body>
 <div class="card">
   <h1>授权访问</h1>
-  <p class="sub"><strong>${htmlEscape(client.name)}</strong> 请求以 <strong>${htmlEscape(user.display_name || user.username)}</strong> 的身份访问：</p>
+  <p class="sub"><strong>${htmlEscape(client.name)}</strong> 请求以 <strong>${htmlEscape(user.display_name || user.account)}</strong> 的身份访问：</p>
   <ul class="scopes">${scopeItems}</ul>
   <form method="post" action="/oauth/authorize">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">

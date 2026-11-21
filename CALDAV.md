@@ -4,7 +4,7 @@
 
 ## 启用与签发 token
 
-CalDAV 不需要全局开关；每个用户用**自己的用户名 + CalDAV app token 或强智教务密码**认证。
+CalDAV 不需要全局开关；每个用户用**自己的学号 + CalDAV app token 或强智教务密码**认证。
 
 管理员给用户签发 token：
 
@@ -33,10 +33,10 @@ http://<host>:8787/caldav/
 
 | 客户端 | 配置 |
 |---|---|
-| iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填学号（或 `username`），密码填该用户的 CalDAV token（或强智密码） |
+| iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填学号，密码填该用户的 CalDAV token（或强智密码） |
 | Thunderbird | 新建日历 → 网络上 → CalDAV；URL 同上 + 用户名/密码 |
 | DAVx5 (Android) | 添加账户 → URL + 用户名密码 → 选择该用户的“课表” |
-| 只读订阅 | `http://<host>:8787/caldav/calendars/<username>/timetable.ics`（Basic 认证） |
+| 只读订阅 | `http://<host>:8787/caldav/calendars/<学号>/timetable.ics`（Basic 认证） |
 
 发现入口：
 
@@ -54,7 +54,7 @@ GET /.well-known/caldav  → 301 /caldav/
 /caldav/calendars/<学号>/timetable.ics
 ```
 
-用户名只能访问自己的 principal/calendar，跨用户请求返回 404。Basic 登录名可以用学号或 `username`；服务器返回的 href 统一使用学号。即使没有注册服务用户名，也可以只用学号 + 强智密码/CalDAV token 使用 CalDAV。
+用户名只能访问自己的 principal/calendar，跨用户请求返回 404。Basic 登录名就是学号；不需要单独注册服务用户名，只用学号 + 强智密码/CalDAV token 即可使用 CalDAV。
 
 ## 数据与时间
 
@@ -81,7 +81,7 @@ GET /.well-known/caldav  → 301 /caldav/
 
 ## 认证
 
-- **Basic**：用户名可以是 `users.username` 或学号（`users.account`）；密码可以是该用户的 CalDAV token（数据库只存 SHA-256），也可以直接使用该用户保存的强智教务密码（解密后比对）。
+- **Basic**：用户名 = 学号（`users.account`）；密码可以是该用户的 CalDAV token（数据库只存 SHA-256），也可以直接使用该用户保存的强智教务密码（解密后比对）。
 - **Bearer**：OAuth access token（需要 `jwxt.read`），绑定 token 的 `user_id`。
 - Basic 失败返回 401；跨用户路径返回 404。
 - 每个用户可签发多个 token，单独撤销；token 只显示一次。
@@ -113,7 +113,7 @@ ETag 基于生成内容；`If-None-Match` 支持 304。
 ```bash
 # 不传 CALDAV_TOKEN 时会用 ADMIN_TOKEN 临时签发一个，测试结束自动撤销
 CALDAV_URL=http://localhost:8787/caldav/ \
-CALDAV_USERNAME=alice \
+CALDAV_ACCOUNT=<学号> \
 ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```

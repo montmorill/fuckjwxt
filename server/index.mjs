@@ -2,7 +2,7 @@ import http from 'node:http';
 import { config, SCOPES } from './config.mjs';
 import { buildOpenApi, routeKeys as specRouteKeys } from './openapi.mjs';
 import {
-  db, getUserById, getUserByUsername, getUserByAccount,
+  db, getUserById, getUserByAccount,
   createUser, updateUser, deleteUser, listUsers,
   createClient, listClients, deleteClient,
   createCalDavToken, listCalDavTokens, revokeCalDavToken, deleteUserSessions, cleanup,
@@ -75,7 +75,6 @@ function sendHtml(res, status, html) {
 
 const safeUser = u => ({
   id: u.id,
-  username: u.username,
   displayName: u.display_name,
   account: u.account,
   baseUrl: u.base_url,
@@ -195,18 +194,18 @@ add('POST', '/login', async ({ req, res }) => {
   }
 
   const ip = req.socket.remoteAddress || 'unknown';
-  const username = String(form.username || '').trim();
-  if (!loginAllowed(ip, username)) {
-    return sendHtml(res, 429, renderLoginPage({ csrf: session.csrf_token, next, username, error: '尝试过于频繁，请稍后再试' }));
+  const account = String(form.account || '').trim();
+  if (!loginAllowed(ip, account)) {
+    return sendHtml(res, 429, renderLoginPage({ csrf: session.csrf_token, next, account, error: '尝试过于频繁，请稍后再试' }));
   }
 
-  const user = getUserByUsername(username);
+  const user = getUserByAccount(account);
   if (!user || user.disabled || !verifyPassword(String(form.password || ''), user.service_password_hash)) {
-    recordLoginFailure(ip, username);
-    return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, username, error: '用户名或密码错误' }));
+    recordLoginFailure(ip, account);
+    return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, account, error: '学号或密码错误' }));
   }
 
-  clearLoginFailures(ip, username);
+  clearLoginFailures(ip, account);
   rotateSession(res, sidFromRequest(req), user);
   redirect(res, next);
 }, { skipOpenApi: true });
@@ -315,15 +314,6 @@ for (const [path, name] of Object.entries(apiRoutes)) {
 }
 
 // ---------- routes: admin users ----------
-const USERNAME_RE = /^[A-Za-z0-9._-]{2,64}$/;
-const validateUsername = value => {
-  const username = String(value || '').trim();
-  if (!USERNAME_RE.test(username)) {
-    throw new HttpError(400, 'invalid_request', 'username must be 2-64 chars of A-Z a-z 0-9 . _ -');
-  }
-  return username;
-};
-
 const SEMESTER_RE = /^\d{4}-\d{4}-[12]$/;
 const validateSemester = value => {
   if (value === undefined) return undefined;
@@ -346,9 +336,8 @@ add('POST', '/admin/users', async ({ req }) => {
   const body = await parseJson(req);
   const account = String(body.account || '').trim();
   if (!account) throw new HttpError(400, 'invalid_request', 'account required');
-  const username = validateUsername(body.username || account);
   const password = String(body.password || '');
-  const displayName = body.displayName ? String(body.displayName).trim() : username;
+  const displayName = body.displayName ? String(body.displayName).trim() : account;
   const baseUrl = body.baseUrl ? String(body.baseUrl).trim() : null;
   const servicePassword = body.servicePassword === undefined ? null : String(body.servicePassword);
   const caldavSemester = validateSemester(body.caldavSemester) ?? null;
@@ -358,7 +347,6 @@ add('POST', '/admin/users', async ({ req }) => {
   if (servicePassword !== null && servicePassword.length < 8) {
     throw new HttpError(400, 'invalid_request', 'servicePassword must be at least 8 chars');
   }
-  if (getUserByUsername(username)) throw new HttpError(409, 'conflict', 'username already exists');
   if (getUserByAccount(account)) throw new HttpError(409, 'conflict', 'account already exists');
 
   if (body.verify !== false) {
@@ -370,7 +358,6 @@ add('POST', '/admin/users', async ({ req }) => {
   }
 
   const user = createUser({
-    username,
     displayName,
     account,
     passwordEnc: encrypt(password),
@@ -389,13 +376,6 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
   if (!user) throw new HttpError(404, 'not_found', 'user not found');
 
   const body = await parseJson(req);
-  let username = user.username;
-  if (body.username !== undefined) {
-    username = validateUsername(body.username);
-    const other = getUserByUsername(username);
-    if (other && other.id !== id) throw new HttpError(409, 'conflict', 'username already exists');
-  }
-
   let account = user.account;
   const accountChanged = body.account !== undefined && String(body.account).trim() !== user.account;
   if (body.account !== undefined) {
@@ -446,7 +426,6 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
   }
 
   const updated = updateUser(id, {
-    username,
     displayName: body.displayName !== undefined ? String(body.displayName).trim() : user.display_name,
     account,
     passwordEnc,
@@ -532,12 +511,12 @@ add('POST', '/admin/clients', async ({ req }) => {
   let userId;
   if (body.userId !== undefined) {
     userId = Number(body.userId);
-  } else if (body.username) {
-    const owner = getUserByUsername(String(body.username));
+  } else if (body.account) {
+    const owner = getUserByAccount(String(body.account));
     if (!owner) throw new HttpError(400, 'invalid_request', 'user not found');
     userId = owner.id;
   } else {
-    throw new HttpError(400, 'invalid_request', 'userId or username required');
+    throw new HttpError(400, 'invalid_request', 'userId or account required');
   }
   const owner = userId ? getUserById(userId) : null;
   if (!owner) throw new HttpError(400, 'invalid_request', 'user not found');
@@ -560,7 +539,7 @@ add('POST', '/admin/clients', async ({ req }) => {
     scopes,
     public: isPublic,
     user_id: userId,
-    username: owner.username,
+    account: owner.account,
   };
 });
 
@@ -573,7 +552,7 @@ add('GET', '/admin/clients', async ({ req }) => {
     scopes: c.scopes.split(' ').filter(Boolean),
     public: Boolean(c.public),
     user_id: c.user_id,
-    username: c.username,
+    account: c.account,
     created_at: c.created_at,
   }));
 });

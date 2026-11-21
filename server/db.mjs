@@ -10,7 +10,6 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL UNIQUE,
   display_name TEXT,
   account TEXT NOT NULL UNIQUE,
   password_enc TEXT NOT NULL,
@@ -95,9 +94,6 @@ CREATE INDEX IF NOT EXISTS idx_caldav_tokens_user ON caldav_tokens(user_id);
 export const getUserById = id =>
   db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 
-export const getUserByUsername = username =>
-  db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-
 export const getUserByAccount = account =>
   db.prepare('SELECT * FROM users WHERE account = ?').get(account);
 
@@ -106,23 +102,22 @@ export const listUsers = () =>
       (SELECT COUNT(*) FROM caldav_tokens t WHERE t.user_id = u.id AND t.revoked_at IS NULL) AS caldav_token_count
     FROM users u ORDER BY u.id`).all();
 
-export function createUser({ username, displayName, account, passwordEnc, baseUrl, servicePasswordHash, caldavSemester }) {
+export function createUser({ displayName, account, passwordEnc, baseUrl, servicePasswordHash, caldavSemester }) {
   const t = now();
   const r = db.prepare(`INSERT INTO users
-      (username, display_name, account, password_enc, base_url, service_password_hash, caldav_semester, disabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
-    .run(username, displayName ?? username, account, passwordEnc, baseUrl ?? null, servicePasswordHash ?? null, caldavSemester ?? null, t, t);
+      (display_name, account, password_enc, base_url, service_password_hash, caldav_semester, disabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+    .run(displayName ?? account, account, passwordEnc, baseUrl ?? null, servicePasswordHash ?? null, caldavSemester ?? null, t, t);
   return getUserById(Number(r.lastInsertRowid));
 }
 
 export function updateUser(id, fields) {
   const user = getUserById(id);
   if (!user) return null;
-  db.prepare(`UPDATE users SET username = ?, display_name = ?, account = ?, password_enc = ?,
+  db.prepare(`UPDATE users SET display_name = ?, account = ?, password_enc = ?,
       base_url = ?, service_password_hash = ?, caldav_semester = ?, disabled = ?, updated_at = ?
     WHERE id = ?`)
     .run(
-      fields.username ?? user.username,
       fields.displayName ?? user.display_name,
       fields.account ?? user.account,
       fields.passwordEnc ?? user.password_enc,
@@ -171,7 +166,7 @@ export const getClient = clientId =>
 
 export const listClients = () =>
   db.prepare(`SELECT c.client_id, c.name, c.redirect_uris, c.scopes, c.public, c.created_at,
-      c.user_id, u.username
+      c.user_id, u.account
     FROM clients c LEFT JOIN users u ON u.id = c.user_id
     ORDER BY c.created_at DESC`).all();
 

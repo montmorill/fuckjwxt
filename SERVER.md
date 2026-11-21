@@ -13,7 +13,7 @@
   - Revocation、Authorization Server Metadata
 - 访问令牌 1 小时、刷新令牌 30 天；令牌只存 SHA-256 哈希。
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
-- **只读 CalDAV**：每个用户独立用户名 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
+- **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
 - 管理 API + 本地 CLI。
 - 客户端 SDK：`sdk/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
 - OpenAPI 3.0（`GET /openapi.json`，`npm run openapi` 生成，`npm run openapi:check` 校验）。
@@ -35,8 +35,8 @@ npm start
 ```
 
 - 服务端**不再从 `.env` 导入用户**；用户必须通过 CLI 或 `POST /admin/users` 创建。
-- `--username` 可省略，省略时用户名就是学号；也可以只创建 CalDAV 用户，不设置服务密码。
-- 打开 `http://localhost:8787/login`，用用户名（省略 `--username` 时就是学号）+ 服务密码登录。
+- 登录名就是学号；只使用 CalDAV 时可以不设服务密码。
+- 打开 `http://localhost:8787/login`，用学号 + 服务密码登录。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 
 ### 添加更多用户
@@ -51,8 +51,6 @@ node scripts/admin.mjs add-user \
   --display-name 'Alice'
 ```
 
-`--username` 可选，省略时用户名 = 学号。
-
 或管理 API：
 
 ```bash
@@ -62,7 +60,7 @@ curl -X POST http://localhost:8787/admin/users \
   -d '{"account":"202600000001","password":"...","servicePassword":"...","displayName":"Alice"}'
 ```
 
-`username` 可选，省略时使用学号。`verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
+`verify` 默认 `true`（先登录教务验证再落库）；测试数据可传 `"verify": false`。
 
 `caldavSemester` 可选，格式如 `2026-2027-1`；不设置时 CalDAV 使用当前学期。
 
@@ -85,7 +83,7 @@ node scripts/admin.mjs add-client \
   --name demo \
   --redirect http://localhost:3000/cb \
   --scopes jwxt.read,offline_access \
-  --user alice
+  --user <学号>
 ```
 
 - `--user` 必填，客户端必须绑定一个用户。
@@ -216,13 +214,13 @@ GET /openapi.json
 | 接口 | 说明 |
 |---|---|
 | `GET /admin/users` | 用户列表 |
-| `POST /admin/users` | 创建用户 `{account,password,username?,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
+| `POST /admin/users` | 创建用户 `{account,password,servicePassword?,displayName?,baseUrl?,caldavSemester?,verify?}` |
 | `PUT /admin/users/:userId` | 更新用户（账号/密码/服务密码/禁用/CalDAV 学期） |
 | `DELETE /admin/users/:userId` | 删除用户（级联删除会话/CalDAV token） |
 | `POST /admin/users/:userId/caldav-tokens` | 签发 CalDAV token（只返回一次） |
 | `GET /admin/users/:userId/caldav-tokens` | token 列表 |
 | `DELETE /admin/users/:userId/caldav-tokens/:tokenId` | 撤销 token |
-| `POST /admin/clients` | `{name,redirectUris,scopes?,public?,userId?/username?}` |
+| `POST /admin/clients` | `{name,redirectUris,scopes?,public?,userId?/account?}` |
 | `GET /admin/clients` | 客户端列表（含绑定用户） |
 | `DELETE /admin/clients/:clientId` | 删除客户端 |
 
@@ -236,7 +234,7 @@ CLI：`node scripts/admin.mjs` 查看全部命令。
 - 客户端 secret：只存 SHA-256，创建时返回一次。
 - access/refresh token：只存 SHA-256；refresh 轮换 + 重放检测。
 - 授权码：60 秒、单次使用、绑定 client/redirect_uri/user、PKCE。
-- CalDAV：每个用户独立用户名 + 多个 token（只存 SHA-256）；Basic 密码也可直接使用该用户的强智密码；路径只能访问自己的 principal/calendar。
+- CalDAV：每个用户独立学号 + 多个 token（只存 SHA-256）；Basic 密码也可直接使用该用户的强智密码；路径只能访问自己的 principal/calendar。
 - 管理接口：独立 `ADMIN_TOKEN`；登录/管理接口限流。
 - CORS 默认关闭，按 `CORS_ORIGINS` 放行。
 - 生产环境务必用 HTTPS 反代，并把 `ISSUER` 改成外部地址。
@@ -265,6 +263,6 @@ scripts/
 
 ## 已验证
 
-- OAuth 端到端 **40 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号用户名与强智密码登录等。
+- OAuth 端到端 **39 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
 - CalDAV **13 项**：PROPFIND（含 `/.well-known/caldav`）/REPORT（calendar-query、sync-collection、OPPO 独立事件）/GET、ETag/304、错误密码 401。
 - SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

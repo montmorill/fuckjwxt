@@ -74,14 +74,14 @@ async function web(path, opts = {}, jar = makeJar()) {
   return r;
 }
 
-async function serviceLogin(jar, username, password) {
+async function serviceLogin(jar, account, password) {
   const page = await web('/login', {}, jar);
   const html = await page.text();
   const csrf = csrfOf(html);
   const res = await web('/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username, password, csrf, next: '/' }).toString(),
+    body: new URLSearchParams({ account, password, csrf, next: '/' }).toString(),
   }, jar);
   return { page: page.status, csrf, status: res.status, location: res.headers.get('location') };
 }
@@ -107,11 +107,11 @@ async function approve(jar, params) {
   };
 }
 
-async function propfind(path, username, password, depth = 0) {
+async function propfind(path, account, password, depth = 0) {
   const r = await fetch(BASE + path, {
     method: 'PROPFIND',
     headers: {
-      Authorization: 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64'),
+      Authorization: 'Basic ' + Buffer.from(`${account}:${password}`).toString('base64'),
       Depth: String(depth),
       'Content-Type': 'application/xml',
     },
@@ -130,7 +130,7 @@ try {
   const users = await get('/admin/users', admin);
   ok('admin users', users.status === 200 && Array.isArray(users.body));
 
-  let primary = users.body.find(u => u.username === 'caldav') || users.body[0];
+  let primary = users.body[0];
   if (!primary) {
     const account = process.env.JWXT_ACCOUNT;
     const password = process.env.JWXT_PASSWORD;
@@ -139,26 +139,25 @@ try {
       process.exit(1);
     }
     const created = await postJson('/admin/users', {
-      username: 'caldav',
       displayName: 'caldav',
       account,
       password,
       servicePassword: 'test-pass',
     }, admin);
-    ok('create primary user', created.status === 200 && Boolean(created.body.id), created.body.username);
+    ok('create primary user', created.status === 200 && Boolean(created.body.id), created.body.account);
     primary = created.body;
   } else {
     const setPass = await putJson(`/admin/users/${primary.id}`, { servicePassword: 'test-pass', disabled: false }, admin);
     ok('set service password', setPass.status === 200 && setPass.body.hasServicePassword === true);
   }
-  ok('primary has username', Boolean(primary.username), primary.username);
+  ok('primary has account', Boolean(primary.account), primary.account);
 
   const primaryJar = makeJar();
-  const login = await serviceLogin(primaryJar, primary.username, 'test-pass');
+  const login = await serviceLogin(primaryJar, primary.account, 'test-pass');
   ok('service login', login.page === 200 && login.status === 302 && primaryJar.has('jwo_sid'));
 
   const badLoginJar = makeJar();
-  const badLogin = await serviceLogin(badLoginJar, primary.username, 'wrong-pass');
+  const badLogin = await serviceLogin(badLoginJar, primary.account, 'wrong-pass');
   ok('wrong service password rejected', badLogin.status === 401);
 
   // ---------- clients ----------
@@ -168,7 +167,7 @@ try {
     scopes: ['jwxt.read', 'jwxt.profile', 'offline_access'],
     userId: primary.id,
   }, admin);
-  ok('create confidential client', conf.status === 200 && conf.body.client_id && conf.body.client_secret, conf.body.username);
+  ok('create confidential client', conf.status === 200 && conf.body.client_id && conf.body.client_secret, conf.body.account);
   if (conf.body.client_id) createdClients.push(conf.body.client_id);
 
   const pub = await postJson('/admin/clients', {
@@ -286,7 +285,6 @@ try {
 
   // ---------- 多用户 ----------
   const bob = await postJson('/admin/users', {
-    username: 'bob',
     displayName: 'Bob',
     account: '202600000099',
     password: 'fake',
@@ -294,20 +292,12 @@ try {
     caldavSemester: '2026-2027-1',
     verify: false,
   }, admin);
-  ok('create second user', bob.status === 200 && Boolean(bob.body.id), bob.body.username);
+  ok('create second user', bob.status === 200 && Boolean(bob.body.id), bob.body.account);
   ok('user caldav semester', bob.body.caldavSemester === '2026-2027-1', bob.body.caldavSemester);
   bobId = bob.body.id;
 
-  const carol = await postJson('/admin/users', {
-    account: '202600000098',
-    password: 'fake',
-    verify: false,
-  }, admin);
-  ok('username defaults to account', carol.status === 200 && carol.body.username === '202600000098', carol.body.username);
-  if (carol.body.id) await del(`/admin/users/${carol.body.id}`, admin).catch(() => {});
-
   const bobJar = makeJar();
-  const bobLogin = await serviceLogin(bobJar, 'bob', 'bob-pass');
+  const bobLogin = await serviceLogin(bobJar, bob.body.account, 'bob-pass');
   ok('bob service login', bobLogin.status === 302);
 
   const bobVerifier = randomBytes(32).toString('base64url');
@@ -339,32 +329,32 @@ try {
   ok('issue bob caldav token', bobCd.status === 200 && Boolean(bobCd.body.token));
   bobTokenId = bobCd.body.id;
 
-  const bobPwRoot = await propfind('/caldav/', 'bob', 'fake');
+  const bobPwRoot = await propfind('/caldav/', bob.body.account, 'fake');
   ok('caldav accepts jwxt password', bobPwRoot.status === 207);
 
   const bobAccountHome = await propfind('/caldav/calendars/202600000099/', bob.body.account, 'fake', 0);
-  ok('caldav accepts account as username', bobAccountHome.status === 207
+  ok('caldav accepts account', bobAccountHome.status === 207
     && bobAccountHome.text.includes('/caldav/calendars/202600000099/'));
 
   const primaryCd = await postJson(`/admin/users/${primary.id}/caldav-tokens`, { label: 'test-primary' }, admin);
   ok('issue primary caldav token', primaryCd.status === 200 && Boolean(primaryCd.body.token));
   primaryTokenId = primaryCd.body.id;
 
-  const bobRoot = await propfind('/caldav/', 'bob', bobCd.body.token);
+  const bobRoot = await propfind('/caldav/', bob.body.account, bobCd.body.token);
   ok('bob caldav discovery', bobRoot.status === 207
     && bobRoot.text.includes(`/caldav/principals/${bob.body.account}/`));
 
-  const bobHome = await propfind(`/caldav/calendars/${bob.body.account}/`, 'bob', bobCd.body.token, 0);
+  const bobHome = await propfind(`/caldav/calendars/${bob.body.account}/`, bob.body.account, bobCd.body.token, 0);
   ok('bob home discovery', bobHome.status === 207
     && bobHome.text.includes(`/caldav/calendars/${bob.body.account}/`));
 
-  const cross1 = await propfind(`/caldav/calendars/${primary.account}/`, 'bob', bobCd.body.token);
+  const cross1 = await propfind(`/caldav/calendars/${primary.account}/`, bob.body.account, bobCd.body.token);
   ok('bob cannot access primary calendar', cross1.status === 404);
 
-  const cross2 = await propfind(`/caldav/calendars/${bob.body.account}/`, primary.username, primaryCd.body.token);
+  const cross2 = await propfind(`/caldav/calendars/${bob.body.account}/`, primary.account, primaryCd.body.token);
   ok('primary cannot access bob calendar', cross2.status === 404);
 
-  const badCd = await propfind('/caldav/', 'bob', 'wrong-token');
+  const badCd = await propfind('/caldav/', bob.body.account, 'wrong-token');
   ok('wrong caldav token rejected', badCd.status === 401);
 } finally {
   for (const id of createdClients) {

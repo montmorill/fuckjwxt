@@ -1,12 +1,12 @@
 // CalDAV 只读端到端测试。
 // 用法（没有 CALDAV_TOKEN 时会用 ADMIN_TOKEN 临时签发一个）：
-//   CALDAV_URL=http://localhost:8787/caldav/ CALDAV_USERNAME=caldav ADMIN_TOKEN=... npm run test:caldav
+//   CALDAV_URL=http://localhost:8787/caldav/ CALDAV_ACCOUNT=<学号> ADMIN_TOKEN=... npm run test:caldav
 const BASE = (process.env.CALDAV_URL || 'http://localhost:8787/caldav/').replace(/\/?$/, '/');
 const origin = new URL(BASE).origin;
-const USER = process.env.CALDAV_USERNAME || 'caldav';
+let ACCOUNT = process.env.CALDAV_ACCOUNT || '';
 const ADMIN = process.env.ADMIN_TOKEN;
 let PASS = process.env.CALDAV_TOKEN || '';
-let auth = PASS ? 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64') : '';
+let auth = PASS && ACCOUNT ? 'Basic ' + Buffer.from(`${ACCOUNT}:${PASS}`).toString('base64') : '';
 let issuedToken = null;
 let fails = 0;
 const ok = (name, cond, extra = '') => {
@@ -33,11 +33,14 @@ async function bootstrapToken() {
   const admin = { Authorization: `Bearer ${ADMIN}` };
   const usersRes = await fetch(origin + '/admin/users', { headers: admin });
   const users = await usersRes.json();
-  const user = Array.isArray(users) ? users.find(u => u.username === USER) : null;
+  const user = Array.isArray(users)
+    ? (ACCOUNT ? users.find(u => u.account === ACCOUNT) : users[0])
+    : null;
   if (!user) {
-    console.error(`找不到用户 ${USER}；先运行 test:oauth 或 add-user`);
+    console.error(`找不到用户 ${ACCOUNT || '(第一个用户)'}；先运行 test:oauth 或 add-user`);
     process.exit(1);
   }
+  ACCOUNT = user.account;
   const r = await fetch(`${origin}/admin/users/${user.id}/caldav-tokens`, {
     method: 'POST',
     headers: { ...admin, 'Content-Type': 'application/json' },
@@ -50,7 +53,7 @@ async function bootstrapToken() {
   }
   PASS = t.token;
   issuedToken = { userId: user.id, tokenId: t.id };
-  auth = 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64');
+  auth = 'Basic ' + Buffer.from(`${ACCOUNT}:${PASS}`).toString('base64');
 }
 
 async function req(path, { method = 'GET', headers = {}, body } = {}) {
@@ -151,7 +154,7 @@ try {
   const bad = await fetchWithTimeout(new URL('/caldav/', origin), {
     method: 'PROPFIND',
     headers: {
-      Authorization: 'Basic ' + Buffer.from(`${USER}:wrong`).toString('base64'),
+      Authorization: 'Basic ' + Buffer.from(`${ACCOUNT}:wrong`).toString('base64'),
       Depth: '0',
       'Content-Type': 'application/xml; charset=utf-8',
     },

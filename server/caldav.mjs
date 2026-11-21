@@ -1,5 +1,5 @@
 // 只读 CalDAV：把课表转成 VEVENT，支持 PROPFIND / REPORT / GET。
-// 认证：Basic（users.username + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
+// 认证：Basic（users.account + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { config } from './config.mjs';
@@ -32,7 +32,7 @@ const DEFAULT_PERIOD_TIMES = {
 };
 
 function pathsFor(user) {
-  const owner = encodeURIComponent(user.account || user.username);
+  const owner = encodeURIComponent(user.account);
   const home = `/caldav/calendars/${owner}/`;
   return {
     principal: `/caldav/principals/${owner}/`,
@@ -90,11 +90,11 @@ export async function authenticate(req) {
   if (/^Basic /i.test(header)) {
     const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
     const idx = decoded.indexOf(':');
-    const username = idx >= 0 ? decoded.slice(0, idx) : '';
+    const account = idx >= 0 ? decoded.slice(0, idx) : '';
     const password = idx >= 0 ? decoded.slice(idx + 1) : '';
 
-    const user = db.getUserByUsername(username) || db.getUserByAccount(username);
-    if (!user || user.disabled) return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+    const user = db.getUserByAccount(account);
+    if (!user || user.disabled) return { error: [401, 'CalDAV 学号或密码错误'], scheme: 'Basic' };
 
     // 密码可以是该用户的 CalDAV token，也可以直接是强智教务密码。
     const token = db.getCalDavTokenByHash(hashToken(password));
@@ -342,7 +342,7 @@ function propXml(name, ctx) {
     case 'calendar-home-set':
       return `<C:calendar-home-set><D:href>${ctx.paths.home}</D:href></C:calendar-home-set>`;
     case 'calendar-user-address-set':
-      return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.username || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
+      return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.account || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
     case 'current-user-privilege-set':
       return '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>';
     case 'group-membership':
@@ -481,14 +481,14 @@ function resolvePath(url) {
   if (!url.pathname.startsWith('/caldav')) return { kind: 'notfound' };
   const parts = url.pathname.replace(/^\/caldav\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   if (parts.length === 0) return { kind: 'root' };
-  if (parts[0] === 'principals' && parts.length === 2) return { kind: 'principal', username: parts[1] };
+  if (parts[0] === 'principals' && parts.length === 2) return { kind: 'principal', account: parts[1] };
   if (parts[0] === 'calendars' && parts.length >= 2) {
-    const username = parts[1];
-    if (parts.length === 2) return { kind: 'home', username };
-    if (parts.length === 3 && parts[2] === 'timetable') return { kind: 'calendar', username };
-    if (parts.length === 3 && parts[2] === 'timetable.ics') return { kind: 'feed', username };
+    const account = parts[1];
+    if (parts.length === 2) return { kind: 'home', account };
+    if (parts.length === 3 && parts[2] === 'timetable') return { kind: 'calendar', account };
+    if (parts.length === 3 && parts[2] === 'timetable.ics') return { kind: 'feed', account };
     if (parts.length === 4 && parts[2] === 'timetable' && parts[3].endsWith('.ics')) {
-      return { kind: 'event', username, hash: parts[3].slice(0, -4) };
+      return { kind: 'event', account, hash: parts[3].slice(0, -4) };
     }
   }
   return { kind: 'notfound' };
@@ -509,21 +509,21 @@ async function handlePropfind(req, res, user, path) {
   }
   const requested = requestedProps(body);
   const paths = pathsFor(user);
-  const username = user.account || user.username;
+  const account = user.account;
 
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user, expandEventsFor(req));
 
   const responses = [];
-  const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, username }, requested)));
+  const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, account }, requested)));
 
   switch (path.kind) {
     case 'root':
       add('/caldav/', { kind: 'root', displayname: 'CalDAV' });
-      if (deep) add(paths.principal, { kind: 'principal', displayname: username });
+      if (deep) add(paths.principal, { kind: 'principal', displayname: account });
       break;
     case 'principal':
-      add(paths.principal, { kind: 'principal', displayname: username });
+      add(paths.principal, { kind: 'principal', displayname: account });
       if (deep) add(paths.home, { kind: 'home', displayname: '日历' });
       break;
     case 'home':
@@ -625,9 +625,8 @@ export async function handleCalDav(req, res, url) {
 
   const path = resolvePath(url);
 
-  // 只能访问自己的 principal / calendar；路径可用 username 或学号
-  const self = new Set([auth.user.username, auth.user.account].filter(Boolean));
-  if (path.username && !self.has(path.username)) return send404(res);
+  // 只能访问自己的 principal / calendar
+  if (path.account && path.account !== auth.user.account) return send404(res);
 
   if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path);
   if (method === 'REPORT') return handleReport(req, res, auth.user, path);

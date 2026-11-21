@@ -832,11 +832,11 @@
           },
           "userId": {
             "type": "integer",
-            "description": "必须提供 userId 或 username（二选一）"
+            "description": "必须提供 userId 或 account（二选一）"
           },
-          "username": {
+          "account": {
             "type": "string",
-            "description": "必须提供 userId 或 username（二选一）"
+            "description": "必须提供 userId 或 account（二选一）"
           }
         }
       },
@@ -873,7 +873,7 @@
             "type": "integer",
             "nullable": true
           },
-          "username": {
+          "account": {
             "type": "string",
             "nullable": true
           }
@@ -911,7 +911,7 @@
             "type": "integer",
             "nullable": true
           },
-          "username": {
+          "account": {
             "type": "string",
             "nullable": true
           }
@@ -922,9 +922,6 @@
         "properties": {
           "id": {
             "type": "integer"
-          },
-          "username": {
-            "type": "string"
           },
           "displayName": {
             "type": "string",
@@ -968,10 +965,6 @@
           "password"
         ],
         "properties": {
-          "username": {
-            "type": "string",
-            "description": "可选；省略时使用学号。2-64 位 A-Z a-z 0-9 . _ -，用于服务登录"
-          },
           "displayName": {
             "type": "string"
           },
@@ -1008,9 +1001,6 @@
       "UserUpdate": {
         "type": "object",
         "properties": {
-          "username": {
-            "type": "string"
-          },
           "displayName": {
             "type": "string"
           },
