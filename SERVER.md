@@ -261,6 +261,11 @@ server/
   index.mjs         HTTP 服务与路由
 scripts/
   admin.mjs         密钥/用户/CalDAV token/客户端管理
+tests/
+  oauth.mjs          OAuth 端到端测试
+  caldav.mjs         CalDAV 端到端测试
+  sdk.mjs            SDK 端到端测试
+  fixtures/          CalDAV 测试夹具
 ```
 
 ## 已验证

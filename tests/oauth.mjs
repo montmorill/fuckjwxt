@@ -1,6 +1,6 @@
 // 端到端自测：多用户、服务登录/授权确认、OAuth、CalDAV 隔离。
 // 只对测试实例运行：会创建/删除 test-* 客户端与 bob 用户。
-// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node scripts/test-oauth.mjs
+// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node tests/oauth.mjs
 import { randomBytes, createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 

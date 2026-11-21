@@ -380,7 +380,7 @@ function buildCourses(events, homeHref) {
 let fixtureCache = null;
 function loadFixture() {
   if (fixtureCache) return fixtureCache;
-  fixtureCache = JSON.parse(readFileSync(new URL('../config/mock-timetable.json', import.meta.url), 'utf8'));
+  fixtureCache = JSON.parse(readFileSync(new URL('../tests/fixtures/timetable.json', import.meta.url), 'utf8'));
   return fixtureCache;
 }
 

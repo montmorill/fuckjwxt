@@ -19,7 +19,8 @@ tools/      一次性探测脚本（凭据从 .env 读）
 server/     OAuth2 服务端（node:http + node:sqlite + node:crypto）
   jwxt/     强智登录与数据接口客户端
 sdk/        浏览器/Node 客户端 SDK
-scripts/    管理 CLI 与端到端测试
+scripts/    管理 CLI 与 OpenAPI 生成/校验
+tests/      端到端测试与夹具
 research/   协议笔记（不含抓包产物）
 ```
 

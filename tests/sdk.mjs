@@ -1,5 +1,5 @@
 // SDK 端到端测试。
-// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node scripts/test-sdk.mjs
+// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node tests/sdk.mjs
 import { existsSync } from 'node:fs';
 import { JwxtOAuthClient, JwxtError } from '../sdk/index.mjs';
 
