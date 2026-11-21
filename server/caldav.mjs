@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { config } from './config.mjs';
-import { hashToken, safeEqual } from './crypto.mjs';
+import { hashToken, safeEqual, decrypt } from './crypto.mjs';
 import * as db from './db.mjs';
 import { authenticateBearer } from './oauth.mjs';
 import { jwxt } from './jwxt-service.mjs';
@@ -81,12 +81,18 @@ export async function authenticate(req) {
     const user = db.getUserByUsername(username);
     if (!user || user.disabled) return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
 
+    // 密码可以是该用户的 CalDAV token，也可以直接是强智教务密码。
     const token = db.getCalDavTokenByHash(hashToken(password));
-    if (!token || token.user_id !== user.id || token.revoked_at) {
-      return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+    if (token && token.user_id === user.id) {
+      db.touchCalDavToken(token.id);
+      return { user };
     }
-    db.touchCalDavToken(token.id);
-    return { user };
+
+    try {
+      if (safeEqual(decrypt(user.password_enc), password)) return { user };
+    } catch { /* 解密失败按密码错误处理 */ }
+
+    return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
   }
 
   if (/^Bearer /i.test(header)) {

@@ -235,7 +235,7 @@ CLI：`node scripts/admin.mjs` 查看全部命令。
 - 客户端 secret：只存 SHA-256，创建时返回一次。
 - access/refresh token：只存 SHA-256；refresh 轮换 + 重放检测。
 - 授权码：60 秒、单次使用、绑定 client/redirect_uri/user、PKCE。
-- CalDAV：每个用户独立用户名 + 多个 token（只存 SHA-256）；路径只能访问自己的 principal/calendar。
+- CalDAV：每个用户独立用户名 + 多个 token（只存 SHA-256）；Basic 密码也可直接使用该用户的强智密码；路径只能访问自己的 principal/calendar。
 - 管理接口：独立 `ADMIN_TOKEN`；登录/管理接口限流。
 - CORS 默认关闭，按 `CORS_ORIGINS` 放行。
 - 生产环境务必用 HTTPS 反代，并把 `ISSUER` 改成外部地址。
@@ -264,6 +264,6 @@ scripts/
 
 ## 已验证
 
-- OAuth 端到端 **37 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离等。
+- OAuth 端到端 **38 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离与强智密码登录等。
 - CalDAV **10 项**：PROPFIND/REPORT/GET、ETag/304、错误密码 401。
 - SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

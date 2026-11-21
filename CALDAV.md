@@ -4,7 +4,7 @@
 
 ## 启用与签发 token
 
-CalDAV 不需要全局开关；每个用户用**自己的用户名 + CalDAV app token** 认证。
+CalDAV 不需要全局开关；每个用户用**自己的用户名 + CalDAV app token 或强智教务密码**认证。
 
 管理员给用户签发 token：
 
@@ -33,7 +33,7 @@ http://<host>:8787/caldav/
 
 | 客户端 | 配置 |
 |---|---|
-| iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填用户的 `username`，密码填该用户的 CalDAV token |
+| iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填用户的 `username`，密码填该用户的 CalDAV token（或强智密码） |
 | Thunderbird | 新建日历 → 网络上 → CalDAV；URL 同上 + 用户名/密码 |
 | DAVx5 (Android) | 添加账户 → URL + 用户名密码 → 选择该用户的“课表” |
 | 只读订阅 | `http://<host>:8787/caldav/calendars/<username>/timetable.ics`（Basic 认证） |
@@ -80,11 +80,11 @@ GET /.well-known/caldav  → 301 /caldav/
 
 ## 认证
 
-- **Basic**：用户名 = `users.username`，密码 = 该用户的 CalDAV token（数据库只存 SHA-256）。
+- **Basic**：用户名 = `users.username`，密码可以是该用户的 CalDAV token（数据库只存 SHA-256），也可以直接使用该用户保存的强智教务密码（解密后比对）。
 - **Bearer**：OAuth access token（需要 `jwxt.read`），绑定 token 的 `user_id`。
 - Basic 失败返回 401；跨用户路径返回 404。
 - 每个用户可签发多个 token，单独撤销；token 只显示一次。
-- 生产环境务必走 HTTPS；token 泄露后撤销并重签。
+- 强智密码可以直连，但 Basic 是明文传输：生产环境务必走 HTTPS；能给客户端单独签发 token 时优先用 token，泄露后可单独撤销而不影响教务密码。
 
 ## 能力
 
