@@ -252,28 +252,32 @@ function calendarLabel(user, items) {
 }
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
-  const dt = (hh, mm) => compact
-    ? `DTSTART:${localStamp(day.y, day.m, day.d, hh, mm)}`
-    : `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, hh, mm)}`;
-  const dtEnd = compact
-    ? `DTEND:${localStamp(day.y, day.m, day.d, eh, em)}`
-    : `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`;
-  const eventLines = [
-    'BEGIN:VEVENT',
-    `UID:${hash}@jwxt-oauth`,
-    `DTSTAMP:${stamp}`,
-    dt(sh, sm),
-    dtEnd,
-    ...rdates.map(r => compact ? `RDATE:${r}` : `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
-    `SUMMARY:${icsEscape(item.name)}`,
-    item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-    description ? `DESCRIPTION:${icsEscape(description)}` : '',
-    `COLOR:${color || COURSE_COLORS[0]}`,
-    'STATUS:CONFIRMED',
-    'TRANSP:OPAQUE',
-    'CATEGORIES:课表',
-    'END:VEVENT',
-  ].filter(Boolean);
+  const eventLines = compact
+    ? [
+      'BEGIN:VEVENT',
+      `UID:${hash}`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
+      `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
+      `SUMMARY:${icsEscape(item.name)}`,
+      'END:VEVENT',
+    ]
+    : [
+      'BEGIN:VEVENT',
+      `UID:${hash}@jwxt-oauth`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
+      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+      ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
+      `SUMMARY:${icsEscape(item.name)}`,
+      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+      description ? `DESCRIPTION:${icsEscape(description)}` : '',
+      `COLOR:${color || COURSE_COLORS[0]}`,
+      'STATUS:CONFIRMED',
+      'TRANSP:OPAQUE',
+      'CATEGORIES:课表',
+      'END:VEVENT',
+    ].filter(Boolean);
 
   const ics = vcalendar([eventLines], item.name, { compact });
   return {
@@ -481,8 +485,9 @@ function send(res, status, body, headers = {}) {
   if (res.headersSent) return;
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''));
   const accept = String(res.req?.headers['accept-encoding'] || '');
+  const ua = String(res.req?.headers['user-agent'] || '');
   const extra = { ...headers };
-  if (buf.length > 1024 && status !== 304 && /\bgzip\b/i.test(accept)) {
+  if (!/OPPO/i.test(ua) && buf.length > 1024 && status !== 304 && /\bgzip\b/i.test(accept)) {
     buf = gzipSync(buf);
     extra['Content-Encoding'] = 'gzip';
     extra.Vary = 'Accept-Encoding';
