@@ -76,7 +76,8 @@ GET /.well-known/caldav  → 301 /caldav/
   }
   ```
 
-- 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件不生成备注，避免客户端换行/转义问题。
+- 日历显示名使用“班级 课表”，没有班级时用“学号 课表”。
+- 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件备注只保留教师，单行显示，避免换行/转义问题。
 - 每个事件带 `COLOR:#RRGGBB`，按课程名稳定分配颜色；是否显示取决于客户端，部分客户端只支持日历级颜色。
 
 ## 认证
@@ -118,4 +119,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、`/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND、REPORT（calendar-query / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、错误密码 401。
+覆盖：OPTIONS、`/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含日历名称）、REPORT（calendar-query / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、错误密码 401。

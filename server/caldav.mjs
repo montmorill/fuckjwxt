@@ -231,7 +231,18 @@ function vcalendar(eventLineArrays, name) {
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, calendarHref, stamp }) {
+function calendarLabel(user, items) {
+  const counts = new Map();
+  for (const item of items) {
+    const name = String(item.className || '').trim();
+    if (name) counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  const className = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'))[0]?.[0] || '';
+  return { className, calendarName: `${className || user.account} 课表` };
+}
+
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, calendarHref, stamp }) {
   const eventLines = [
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
@@ -241,6 +252,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, calendarHr
     ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
     `SUMMARY:${icsEscape(item.name)}`,
     item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+    description ? `DESCRIPTION:${icsEscape(description)}` : '',
     `COLOR:${color || COURSE_COLORS[0]}`,
     'STATUS:CONFIRMED',
     'TRANSP:OPAQUE',
@@ -278,6 +290,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
     const [startTime, endTime] = times[periodKey] || times['1-2'];
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
+    const description = item.teacher ? `教师 ${item.teacher}` : '';
 
     if (expand) {
       // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
@@ -286,7 +299,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, calendarHref, stamp }));
       }
       continue;
     }
@@ -300,7 +313,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
@@ -317,12 +330,13 @@ async function buildCalendar(user, expand) {
   const html = await jwxt.calendar(user, semester);
   const start = parseSemesterStart(html, semester);
   const paths = pathsFor(user);
+  const { className, calendarName } = calendarLabel(user, items);
   const events = buildEvents(items, start, semester, paths.calendar, expand);
-  const fullIcs = vcalendar(events.map(e => e.eventLines), CALENDAR_NAME);
+  const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
 
-  return { semester, start, events, fullIcs, etag, lastModified, paths };
+  return { semester, start, events, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
 async function calendarData(user, expand = false) {
@@ -368,7 +382,7 @@ function propXml(name, ctx) {
     case 'getlastmodified':
       return ctx.lastModified ? `<D:getlastmodified>${xmlEscape(ctx.lastModified)}</D:getlastmodified>` : '';
     case 'calendar-description':
-      return '<C:calendar-description>强智教务课表</C:calendar-description>';
+      return `<C:calendar-description>${xmlEscape(ctx.description || '强智教务课表')}</C:calendar-description>`;
     case 'owner':
       return `<D:owner><D:href>${ctx.paths.principal}</D:href></D:owner>`;
     case 'supported-report-set':
@@ -520,8 +534,12 @@ async function handlePropfind(req, res, user, path) {
   const paths = pathsFor(user);
   const account = user.account;
 
+  const expand = expandEventsFor(req);
   let cal = null;
-  if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user, expandEventsFor(req));
+  if (['calendar', 'event', 'feed'].includes(path.kind) || (path.kind === 'home' && deep)) {
+    cal = await calendarData(user, expand);
+  }
+  const calendarName = cal?.calendarName || CALENDAR_NAME;
 
   const responses = [];
   const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, account }, requested)));
@@ -538,13 +556,25 @@ async function handlePropfind(req, res, user, path) {
     case 'home':
       add(paths.home, { kind: 'home', displayname: '日历' });
       if (deep) {
-        // 发现阶段不强制生成整张日历，避免首次 PROPFIND 过慢
-        add(paths.calendar, { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal?.etag, lastModified: cal?.lastModified });
+        // 首次发现需要生成课表，之后走缓存
+        add(paths.calendar, {
+          kind: 'calendar',
+          displayname: calendarName,
+          description: calendarName,
+          etag: cal?.etag,
+          lastModified: cal?.lastModified,
+        });
       }
       break;
     case 'calendar':
     case 'feed':
-      add(paths.calendar, { kind: 'calendar', displayname: CALENDAR_NAME, etag: cal.etag, lastModified: cal.lastModified });
+      add(paths.calendar, {
+        kind: 'calendar',
+        displayname: cal.calendarName,
+        description: cal.calendarName,
+        etag: cal.etag,
+        lastModified: cal.lastModified,
+      });
       if (deep) {
         for (const e of cal.events) add(e.href, { kind: 'event', displayname: e.summary, etag: e.etag, lastModified: cal.lastModified });
       }
