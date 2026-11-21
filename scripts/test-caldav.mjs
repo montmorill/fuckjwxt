@@ -150,6 +150,18 @@ try {
     && oppoCount > syncCount && !oppoSync.text.includes('RDATE:'), `events=${oppoCount}`);
 
   const eventHref = report.text.match(/<D:href>([^<]+\.ics)<\/D:href>/i)?.[1];
+  const multiget = eventHref
+    ? await req(calHref, {
+      method: 'REPORT',
+      headers: { Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' },
+      body: `<?xml version="1.0" encoding="utf-8"?><C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:getcontenttype/><D:getetag/><C:schedule-tag/><C:calendar-data/></D:prop><D:href>${eventHref}</D:href></C:calendar-multiget>`,
+    })
+    : { status: 0, text: '' };
+  ok('calendar-multiget 返回完整属性', multiget.status === 207
+    && multiget.text.includes('<D:getcontenttype>text/calendar')
+    && multiget.text.includes('<C:schedule-tag>')
+    && multiget.text.includes('BEGIN:VEVENT'));
+
   const event = eventHref ? await req(eventHref) : { status: 0, headers: new Headers(), text: '' };
   ok('GET 单个事件', event.status === 200 && /text\/calendar/i.test(event.headers.get('content-type') || '') && event.text.includes('BEGIN:VEVENT'));
 

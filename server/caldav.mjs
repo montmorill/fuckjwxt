@@ -600,9 +600,10 @@ async function handleReport(req, res, user, path) {
   const cal = await calendarData(user, expandEventsFor(req));
   let events = cal.events;
 
+  const eventXml = e => `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop><D:getetag>${xmlEscape(e.etag)}</D:getetag><D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype><C:schedule-tag>${xmlEscape(e.etag)}</C:schedule-tag><C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
+
   if (/sync-collection/i.test(body)) {
-    const responses = events.map(e => `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop><D:getetag>${xmlEscape(e.etag)}</D:getetag><C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`);
-    return sendXml(res, multistatusWithToken(responses, cal.etag));
+    return sendXml(res, multistatusWithToken(events.map(eventXml), cal.etag));
   }
 
   if (/calendar-multiget/i.test(body)) {
@@ -614,8 +615,7 @@ async function handleReport(req, res, user, path) {
     if (wanted.size) events = cal.events.filter(e => wanted.has(norm(e.href)));
   }
 
-  const responses = events.map(e => `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop><D:getetag>${xmlEscape(e.etag)}</D:getetag><C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`);
-  sendXml(res, multistatus(responses));
+  sendXml(res, multistatus(events.map(eventXml)));
 }
 
 async function handleGet(req, res, user, path) {
