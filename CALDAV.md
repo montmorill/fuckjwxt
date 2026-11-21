@@ -119,4 +119,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含日历名称）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、错误密码 401。
+覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含日历名称）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件，按请求属性返回）、单个事件 GET、整表 GET、ETag/304、错误密码 401。

@@ -600,7 +600,23 @@ async function handleReport(req, res, user, path) {
   const cal = await calendarData(user, expandEventsFor(req));
   let events = cal.events;
 
-  const eventXml = e => `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop><D:getetag>${xmlEscape(e.etag)}</D:getetag><D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype><C:schedule-tag>${xmlEscape(e.etag)}</C:schedule-tag><C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
+  const wants = [];
+  if (/getetag/i.test(body)) wants.push('getetag');
+  if (/getcontenttype/i.test(body)) wants.push('getcontenttype');
+  if (/schedule-tag/i.test(body)) wants.push('schedule-tag');
+  if (/calendar-data/i.test(body)) wants.push('calendar-data');
+  if (!wants.length) wants.push('getetag', 'calendar-data');
+
+  const eventXml = e => {
+    const props = wants.map(name => {
+      if (name === 'getetag') return `<D:getetag>${xmlEscape(e.etag)}</D:getetag>`;
+      if (name === 'getcontenttype') return '<D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>';
+      if (name === 'schedule-tag') return `<C:schedule-tag>${xmlEscape(e.etag)}</C:schedule-tag>`;
+      return `<C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data>`;
+    }).join('');
+    return `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop>${props}</D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
+  };
+  const notFoundXml = href => `<D:response><D:href>${xmlEscape(href)}</D:href><D:status>HTTP/1.1 404 Not Found</D:status></D:response>`;
 
   if (/sync-collection/i.test(body)) {
     return sendXml(res, multistatusWithToken(events.map(eventXml), cal.etag));
@@ -611,8 +627,11 @@ async function handleReport(req, res, user, path) {
       try { return decodeURIComponent(new URL(href, 'http://caldav.local').pathname); }
       catch { return href; }
     };
-    const wanted = new Set([...body.matchAll(/<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/gi)].map(m => norm(m[1].trim())));
-    if (wanted.size) events = cal.events.filter(e => wanted.has(norm(e.href)));
+    const wanted = [...new Set([...body.matchAll(/<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/gi)].map(m => norm(m[1].trim())))];
+    if (wanted.length) {
+      const byHref = new Map(cal.events.map(e => [norm(e.href), e]));
+      return sendXml(res, multistatus(wanted.map(href => byHref.has(href) ? eventXml(byHref.get(href)) : notFoundXml(href))));
+    }
   }
 
   sendXml(res, multistatus(events.map(eventXml)));
