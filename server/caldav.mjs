@@ -339,15 +339,31 @@ function buildEvents(items, start, semester, calendarHref, expand) {
   return events;
 }
 
+let fixtureCache = null;
+function loadFixture() {
+  if (fixtureCache) return fixtureCache;
+  fixtureCache = JSON.parse(readFileSync(new URL('../config/mock-timetable.json', import.meta.url), 'utf8'));
+  return fixtureCache;
+}
+
 async function buildCalendar(user, expand) {
-  const semesters = await jwxt.semesters(user);
-  const semester = user.caldav_semester
+  const fixture = process.env.CALDAV_FIXTURE === '1' ? loadFixture() : null;
+  const semesters = fixture ? [] : await jwxt.semesters(user);
+  const semester = fixture?.semester
+    || user.caldav_semester
     || semesters.find(s => s.selected)?.value || semesters[0]?.value;
   if (!semester) throw new Error('没有可用学期');
 
-  const items = await jwxt.timetable(user, { semester });
-  const html = await jwxt.calendar(user, semester);
-  const start = parseSemesterStart(html, semester);
+  let items;
+  let start;
+  if (fixture) {
+    items = fixture.items;
+    start = fixture.start;
+  } else {
+    items = await jwxt.timetable(user, { semester });
+    const html = await jwxt.calendar(user, semester);
+    start = parseSemesterStart(html, semester);
+  }
   const paths = pathsFor(user);
   const { className, calendarName } = calendarLabel(user, items);
   const events = buildEvents(items, start, semester, paths.calendar, expand);

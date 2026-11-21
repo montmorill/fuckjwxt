@@ -1,0 +1,16 @@
+{
+  "semester": "2026-2027-1",
+  "start": { "y": 2026, "m": 8, "d": 31 },
+  "items": [
+    { "name": "高等数学(A)（2-1）", "day": 1, "periods": "1-2", "weeks": "1-16", "location": "1号教学楼(1-101)", "teacher": "刘晓妍", "className": "软件工程*2026-1-2" },
+    { "name": "大学英语", "day": 1, "periods": "3-4", "weeks": "1-16", "location": "1号教学楼(1-102)", "teacher": "王老师", "className": "软件工程*2026-1-2" },
+    { "name": "程序设计基础", "day": 2, "periods": "1-2", "weeks": "1-16", "location": "2号教学楼(2-201)", "teacher": "李老师", "className": "软件工程*2026-1-2" },
+    { "name": "数据结构", "day": 2, "periods": "5-6", "weeks": "1-16", "location": "2号教学楼(2-202)", "teacher": "赵老师", "className": "软件工程*2026-1-2" },
+    { "name": "体育与健康", "day": 3, "periods": "3-4", "weeks": "1-16", "location": "田径场", "teacher": "孙老师", "className": "软件工程*2026-1-2" },
+    { "name": "思想道德与法治", "day": 3, "periods": "7-8", "weeks": "1-16", "location": "3号教学楼(3-301)", "teacher": "周老师", "className": "软件工程*2026-1-2" },
+    { "name": "线性代数", "day": 4, "periods": "1-2", "weeks": "1-16", "location": "1号教学楼(1-103)", "teacher": "吴老师", "className": "软件工程*2026-1-2" },
+    { "name": "计算机组成原理", "day": 4, "periods": "5-6", "weeks": "1-16", "location": "2号教学楼(2-203)", "teacher": "郑老师", "className": "软件工程*2026-1-2" },
+    { "name": "形势与政策", "day": 5, "periods": "3-4", "weeks": "1-16", "location": "3号教学楼(3-302)", "teacher": "冯老师", "className": "软件工程*2026-1-2" },
+    { "name": "软件工程导论", "day": 5, "periods": "7-8", "weeks": "1-16", "location": "3号教学楼(3-303)", "teacher": "陈老师", "className": "软件工程*2026-1-2" }
+  ]
+}
