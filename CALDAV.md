@@ -58,8 +58,9 @@ GET /.well-known/caldav  → 301 /caldav/
 
 ## 数据与时间
 
-- 每个上课日生成一个独立 VEVENT（同一课程不同周次会有多个 UID），兼容不支持 `RDATE` 展开的客户端（如 OPPO 日历）。
-- `UID` 稳定（学期/课程/星期/节次/地点/教师/周次的哈希）。
+- 默认每个课程条目生成一个 VEVENT，多周用 `RDATE` 展开。
+- 检测到 `User-Agent` 含 `OPPO`（OPPO 日历不展开 `RDATE`）时，改为每个上课日一个独立 VEVENT，同一课程不同周次使用不同 UID。
+- 两种模式的 UID、ETag 和缓存彼此独立，客户端切来切去不会互相污染。
 - 星期 1–7 映射周一到周日；周次从教学周历的第 1 周周一开始。
 - 学期默认取该用户教务系统里的当前学期；需要固定某学期时，在用户上设置 `caldavSemester`（CLI `--caldav-semester` 或管理 API），不设置则跟随当前学期。
 - 学期起始日期从 `/jsxsd/jxzl/jxzl_query` 的“第 1 周”行解析；解析失败会报错，不再用环境变量兜底。
@@ -117,4 +118,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、`/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND、REPORT（calendar-query / sync-collection）、单个事件 GET、整表 GET、ETag/304、错误密码 401。
+覆盖：OPTIONS、`/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND、REPORT（calendar-query / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、错误密码 401。

@@ -108,7 +108,8 @@ try {
     body: `<?xml version="1.0" encoding="utf-8"?><C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:getetag/><C:calendar-data/></D:prop></C:calendar-query>`,
   });
   const eventCount = (report.text.match(/BEGIN:VEVENT/g) || []).length;
-  ok('REPORT calendar-query 返回 VEVENT', report.status === 207 && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0, `events=${eventCount}`);
+  ok('REPORT calendar-query 返回 VEVENT（RDATE）', report.status === 207
+    && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0 && report.text.includes('RDATE:'), `events=${eventCount}`);
 
   const sync = await req(calHref, {
     method: 'REPORT',
@@ -119,8 +120,21 @@ try {
     body: `<?xml version="1.0" encoding="utf-8"?><sync-collection xmlns="DAV:"><sync-token/><sync-level>1</sync-level><prop><getetag/><calendar-data xmlns="urn:ietf:params:xml:ns:caldav"/></prop></sync-collection>`,
   });
   const syncCount = (sync.text.match(/BEGIN:VEVENT/g) || []).length;
-  ok('REPORT sync-collection 返回独立 VEVENT 和 sync-token', sync.status === 207
-    && syncCount > 0 && sync.text.includes('<D:sync-token>') && !sync.text.includes('RDATE:'));
+  ok('REPORT sync-collection 返回 RDATE 和 sync-token', sync.status === 207
+    && syncCount > 0 && sync.text.includes('<D:sync-token>') && sync.text.includes('RDATE:'));
+
+  const oppoSync = await req(calHref, {
+    method: 'REPORT',
+    headers: {
+      Depth: '1',
+      'Content-Type': 'application/xml; charset=utf-8',
+      'User-Agent': 'OPPO-Calendar',
+    },
+    body: `<?xml version="1.0" encoding="utf-8"?><sync-collection xmlns="DAV:"><sync-token/><sync-level>1</sync-level><prop><getetag/><calendar-data xmlns="urn:ietf:params:xml:ns:caldav"/></prop></sync-collection>`,
+  });
+  const oppoCount = (oppoSync.text.match(/BEGIN:VEVENT/g) || []).length;
+  ok('OPPO sync-collection 返回独立 VEVENT', oppoSync.status === 207
+    && oppoCount > syncCount && !oppoSync.text.includes('RDATE:'), `events=${oppoCount}`);
 
   const eventHref = report.text.match(/<D:href>([^<]+\.ics)<\/D:href>/i)?.[1];
   const event = eventHref ? await req(eventHref) : { status: 0, headers: new Headers(), text: '' };

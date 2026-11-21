@@ -45,6 +45,9 @@ const pad = n => String(n).padStart(2, '0');
 const sha1 = s => createHash('sha1').update(String(s)).digest('hex');
 const sha256 = s => createHash('sha256').update(String(s)).digest('hex');
 
+// OPPO 日历不展开 RDATE，给它每个上课日生成独立 VEVENT。
+const expandEventsFor = req => /OPPO/i.test(String(req.headers['user-agent'] || ''));
+
 const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
@@ -214,7 +217,37 @@ function vcalendar(eventLineArrays, name) {
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
-function buildEvents(items, start, semester, calendarHref) {
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, calendarHref, stamp }) {
+  const eventLines = [
+    'BEGIN:VEVENT',
+    `UID:${hash}@jwxt-oauth`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
+    `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
+    ...rdates.map(r => `RDATE:${r}`),
+    `SUMMARY:${icsEscape(item.name)}`,
+    item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+    description ? `DESCRIPTION:${icsEscape(description)}` : '',
+    'STATUS:CONFIRMED',
+    'TRANSP:OPAQUE',
+    'CATEGORIES:课表',
+    'END:VEVENT',
+  ].filter(Boolean);
+
+  const ics = vcalendar([eventLines], item.name);
+  return {
+    hash,
+    uid: `${hash}@jwxt-oauth`,
+    summary: item.name,
+    href: `${calendarHref}${hash}.ics`,
+    etag: `"${sha256(ics).slice(0, 32)}"`,
+    ics,
+    eventLines,
+    start: utcStamp(day.y, day.m, day.d, sh, sm),
+  };
+}
+
+function buildEvents(items, start, semester, calendarHref, expand) {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -237,47 +270,35 @@ function buildEvents(items, start, semester, calendarHref) {
       item.location ? `地点: ${item.location}` : '',
     ].filter(Boolean).join('\n');
 
-    // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
-    for (const week of weeks) {
-      const day = dateFor(start, week, item.day);
-      const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
-      if (seen.has(hash)) continue;
-      seen.add(hash);
-
-      const eventLines = [
-        'BEGIN:VEVENT',
-        `UID:${hash}@jwxt-oauth`,
-        `DTSTAMP:${stamp}`,
-        `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
-        `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
-        `SUMMARY:${icsEscape(item.name)}`,
-        item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-        description ? `DESCRIPTION:${icsEscape(description)}` : '',
-        'STATUS:CONFIRMED',
-        'TRANSP:OPAQUE',
-        'CATEGORIES:课表',
-        'END:VEVENT',
-      ].filter(Boolean);
-
-      const ics = vcalendar([eventLines], item.name);
-      events.push({
-        hash,
-        uid: `${hash}@jwxt-oauth`,
-        summary: item.name,
-        href: `${calendarHref}${hash}.ics`,
-        etag: `"${sha256(ics).slice(0, 32)}"`,
-        ics,
-        eventLines,
-        start: utcStamp(day.y, day.m, day.d, sh, sm),
-      });
+    if (expand) {
+      // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
+      for (const week of weeks) {
+        const day = dateFor(start, week, item.day);
+        const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
+        if (seen.has(hash)) continue;
+        seen.add(hash);
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], description, calendarHref, stamp }));
+      }
+      continue;
     }
+
+    // 其他客户端使用标准 RDATE 展开，体积更小。
+    const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${item.weeks}`);
+    if (seen.has(hash)) continue;
+    seen.add(hash);
+    const day = dateFor(start, weeks[0], item.day);
+    const rdates = weeks.slice(1).map(week => {
+      const d = dateFor(start, week, item.day);
+      return utcStamp(d.y, d.m, d.d, sh, sm);
+    });
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, description, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   return events;
 }
 
-async function buildCalendar(user) {
+async function buildCalendar(user, expand) {
   const semesters = await jwxt.semesters(user);
   const semester = user.caldav_semester
     || semesters.find(s => s.selected)?.value || semesters[0]?.value;
@@ -287,7 +308,7 @@ async function buildCalendar(user) {
   const html = await jwxt.calendar(user, semester);
   const start = parseSemesterStart(html, semester);
   const paths = pathsFor(user);
-  const events = buildEvents(items, start, semester, paths.calendar);
+  const events = buildEvents(items, start, semester, paths.calendar, expand);
   const fullIcs = vcalendar(events.map(e => e.eventLines), CALENDAR_NAME);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
@@ -295,11 +316,11 @@ async function buildCalendar(user) {
   return { semester, start, events, fullIcs, etag, lastModified, paths };
 }
 
-async function calendarData(user) {
-  const key = `${user.id}:${user.caldav_semester || 'current'}`;
+async function calendarData(user, expand = false) {
+  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'oppo' : 'std'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
-  const data = await buildCalendar(user);
+  const data = await buildCalendar(user, expand);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -491,7 +512,7 @@ async function handlePropfind(req, res, user, path) {
   const username = user.username || user.account;
 
   let cal = null;
-  if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user);
+  if (['calendar', 'event', 'feed'].includes(path.kind)) cal = await calendarData(user, expandEventsFor(req));
 
   const responses = [];
   const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, username }, requested)));
@@ -537,7 +558,7 @@ async function handleReport(req, res, user, path) {
   }
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
-  const cal = await calendarData(user);
+  const cal = await calendarData(user, expandEventsFor(req));
   let events = cal.events;
 
   if (/sync-collection/i.test(body)) {
@@ -560,15 +581,16 @@ async function handleReport(req, res, user, path) {
 
 async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
+  const expand = expandEventsFor(req);
 
   if (path.kind === 'calendar' || path.kind === 'feed') {
-    const cal = await calendarData(user);
+    const cal = await calendarData(user, expand);
     if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
     return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
   }
 
   if (path.kind === 'event') {
-    const cal = await calendarData(user);
+    const cal = await calendarData(user, expand);
     const e = cal.events.find(x => x.hash === path.hash);
     if (!e) return send404(res);
     if (etagMatches(req, e.etag)) return sendNotModified(res, e.etag);
