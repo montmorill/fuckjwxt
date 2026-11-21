@@ -45,8 +45,8 @@ switch (cmd) {
   case 'add-user': {
     const username = String(args.username || '').trim();
     const account = String(args.account || '').trim();
-    const password = String(args.password || process.env.JWXT_PASSWORD || '');
-    const baseUrl = args['base-url'] || process.env.JWXT_BASE_URL || null;
+    const password = String(args.password || '');
+    const baseUrl = args['base-url'] || null;
     const displayName = args['display-name'] || username;
     const servicePassword = args['service-password'] || null;
     if (!username || !account || !password) throw new Error('需要 --username --account --password');
