@@ -260,6 +260,8 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
       `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
       `SUMMARY:${icsEscape(item.name)}`,
+      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+      description ? `DESCRIPTION:${icsEscape(description)}` : '',
       'END:VEVENT',
     ]
     : [
