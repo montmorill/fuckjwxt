@@ -94,8 +94,19 @@ loginMethod=logon&userlanguage=0&userAccount=<账号>&userPassword=&encoded=<url
 
 - 失败：200，重新渲染登录页，页面中含
   `<font color="red" size="2" id="showMsg">该帐号不存在或密码错误,请联系管理员!</font>`。
-- 成功：预期为 3xx 跳到 `/index.htmlx` 并持有已认证会话（本环境无有效账号，**未实测**）。
+- 成功：**302** `Location: /jsxsd/xk/LoginToXk?method=jwxt&ticqzket=<224 hex>`，同时轮换 `bzb_njw`。
+  跟进该 URL 后 302 到 `/jsxsd/framework/xsMainV.htmlx`，并下发 `bzb_jsxsd` + `SERVERID_jsxsd`。
 - 未认证访问 `/index.htmlx` 仍返回登录页（200），不是 302。
+
+### 步骤 5：`ticqzket` 的性质（2026-11-21 实测）
+
+- 长度 224 hex，**自包含的 bearer token**，不是一次性，也不绑定原会话。
+- 用任意 Cookie 罐（甚至完全无 Cookie）拿同一个 token 都能换到新的 `bzb_jsxsd` 会话并进入主框架。
+- 同一 token 连续使用两次、以及闲置 60 秒后再次使用，均成功。
+- 伪造 / 截断 / 无 token：200 空 body，仍下发 `bzb_jsxsd`，但该会话未认证（数据接口返回空对象）。
+- 篡改 1 位：200，页面提示“集成登录提示信息 此用户信息不存在,非法登录”。
+- 含义：token 一旦从 URL（浏览器历史、代理/网关日志、Referer、截图）泄露，即可在有效期内反复冒充该用户建立会话。
+  学校侧应改为一次性、短 TTL、绑定原会话的 ticket。
 
 ## 3. 账号格式
 
