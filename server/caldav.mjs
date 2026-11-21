@@ -782,6 +782,18 @@ async function handleGet(req, res, user, path) {
   return send404(res);
 }
 
+async function handleFeed(req, res, token) {
+  const row = db.getCalDavTokenByHash(hashToken(token));
+  const user = row ? db.getUserById(row.user_id) : null;
+  if (!row || !user || user.disabled) return sendText(res, 401, '订阅 token 无效或已撤销');
+  db.touchCalDavToken(row.id);
+
+  const cal = await calendarData(user, expandEventsFor(req));
+  const head = req.method === 'HEAD';
+  if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
+  return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
+}
+
 function handleOptions(res) {
   send(res, 200, '', {
     DAV: '1, 2, calendar-access',
@@ -794,10 +806,23 @@ export async function handleCalDav(req, res, url) {
   const method = String(req.method || '').toUpperCase();
 
   if (DEBUG && /OPPO/i.test(String(req.headers['user-agent'] || ''))) {
-    console.log(`[caldav] OPPO ${method} ${url.pathname} accept-encoding=${req.headers['accept-encoding'] || '-'}`);
+    const debugPath = url.pathname.startsWith('/caldav/feed/')
+      ? '/caldav/feed/<redacted>.ics'
+      : url.pathname;
+    console.log(`[caldav] OPPO ${method} ${debugPath} accept-encoding=${req.headers['accept-encoding'] || '-'}`);
   }
 
   if (method === 'OPTIONS') return handleOptions(res);
+
+  // /caldav/feed/<token>.ics：把 CalDAV token 放进路径，供只接受“订阅 URL”
+  // 的客户端（如 Apple 日历）直接拉取整表，不需要 Basic 认证。
+  const feed = url.pathname.match(/^\/caldav\/feed\/([^/]+)\.ics$/);
+  if (feed) {
+    if (method !== 'GET' && method !== 'HEAD') {
+      return sendText(res, 405, '只读订阅', { Allow: 'GET, HEAD' });
+    }
+    return handleFeed(req, res, decodeURIComponent(feed[1]));
+  }
 
   const auth = await authenticate(req);
   if (auth.error) {

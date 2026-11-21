@@ -637,7 +637,11 @@ const server = http.createServer(async (req, res) => {
   } finally {
     const ms = Date.now() - started;
     if (!url.pathname.startsWith('/healthz')) {
-      console.log(`${req.method} ${url.pathname} ${res.statusCode || '-'} ${ms}ms`);
+      // 订阅 URL 里带着 CalDAV token，日志里必须打码。
+      const logPath = url.pathname.startsWith('/caldav/feed/')
+        ? '/caldav/feed/<redacted>.ics'
+        : url.pathname;
+      console.log(`${req.method} ${logPath} ${res.statusCode || '-'} ${ms}ms`);
     }
   }
 });

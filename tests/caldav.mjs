@@ -187,6 +187,23 @@ try {
     ok('If-None-Match 返回 304', cached.status === 304);
   }
 
+  // 订阅 URL：token 在路径里，不需要 Basic 认证（Apple 日历等）。
+  const subUrl = `${origin}/caldav/feed/${encodeURIComponent(PASS)}.ics`;
+  const sub = await fetchWithTimeout(subUrl);
+  const subText = await sub.text();
+  ok('订阅 URL 无需 Basic 返回 ICS', sub.status === 200
+    && /text\/calendar/i.test(sub.headers.get('content-type') || '')
+    && subText.includes('BEGIN:VCALENDAR') && subText.includes('BEGIN:VEVENT'));
+
+  const subEtag = sub.headers.get('etag');
+  if (subEtag) {
+    const subCached = await fetchWithTimeout(subUrl, { headers: { 'If-None-Match': subEtag } });
+    ok('订阅 URL 支持 If-None-Match', subCached.status === 304);
+  }
+
+  const subBad = await fetchWithTimeout(`${origin}/caldav/feed/not-a-real-token.ics`);
+  ok('无效订阅 token 返回 401', subBad.status === 401);
+
   const bad = await fetchWithTimeout(new URL('/caldav/', origin), {
     method: 'PROPFIND',
     headers: {

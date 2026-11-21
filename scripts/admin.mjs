@@ -154,7 +154,12 @@ switch (cmd) {
       label: args.label ? String(args.label) : null,
       tokenHash: hashToken(token),
     });
-    console.log(JSON.stringify({ id: row.id, label: row.label, token }, null, 2));
+    console.log(JSON.stringify({
+      id: row.id,
+      label: row.label,
+      token,
+      icsUrl: `${config.issuer}/caldav/feed/${token}.ics`,
+    }, null, 2));
     console.log('\ntoken 只显示这一次，请立即保存。');
     break;
   }
