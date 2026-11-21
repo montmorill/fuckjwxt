@@ -3,15 +3,16 @@ import { login, request, BASE, UA } from './jwxt.mjs';
 
 const XHR = { 'X-Requested-With': 'XMLHttpRequest' };
 
-export async function connect(opts) {
-  const { jar, location } = await login(opts);
+export async function connect(opts = {}) {
+  const { jar, location, baseUrl } = await login(opts);
+  const base = (baseUrl || BASE).replace(/\/+$/, '');
   let r = await request(jar, location);
   if (r.location) await request(jar, new URL(r.location, location).href);
   const get = (path, o = {}) =>
-    request(jar, BASE + path, { ...o, headers: { ...XHR, ...(o.headers || {}) } });
+    request(jar, base + path, { ...o, headers: { ...XHR, ...(o.headers || {}) } });
   const getText = async p => (await get(p)).text;
   const getJson = async p => JSON.parse(await getText(p));
-  return { base: BASE, jar, get, getText, getJson };
+  return { base, jar, get, getText, getJson };
 }
 
 // 常见 HTML 实体解码（按项目里实际会出现的字符集，够用且不引入依赖）
@@ -203,7 +204,7 @@ export const getClassrooms = s => s.getText('/jsxsd/kbxx/jsjy_query');
 
 // ---- 照片（二进制，需用 arrayBuffer 读取） ----
 export async function getPhotoBytes(s) {
-  const res = await fetch(BASE + '/jsxsd/grxx/xszpLoad', {
+  const res = await fetch(s.base + '/jsxsd/grxx/xszpLoad', {
     headers: { 'User-Agent': UA, Cookie: s.jar.header() },
   });
   s.jar.absorb(res);
