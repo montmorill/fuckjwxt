@@ -501,8 +501,9 @@ function send(res, status, body, headers = {}) {
   if (res.headersSent) return;
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''));
   const accept = String(res.req?.headers['accept-encoding'] || '');
+  const ua = String(res.req?.headers['user-agent'] || '');
   const extra = { ...headers };
-  if (buf.length > 1024 && status !== 304 && /\bgzip\b/i.test(accept)) {
+  if (!/OPPO/i.test(ua) && buf.length > 1024 && status !== 304 && /\bgzip\b/i.test(accept)) {
     buf = gzipSync(buf);
     extra['Content-Encoding'] = 'gzip';
     extra.Vary = 'Accept-Encoding';
