@@ -10,6 +10,18 @@ import { jwxt } from './jwxt-service.mjs';
 
 const CALENDAR_NAME = '课表';
 const CALENDAR_TIMEZONE = 'Asia/Shanghai';
+const DEBUG = process.env.CALDAV_DEBUG === '1';
+const CALENDAR_TIMEZONE_ICS = [
+  'BEGIN:VTIMEZONE',
+  'TZID:Asia/Shanghai',
+  'BEGIN:STANDARD',
+  'DTSTART:19700101T000000',
+  'TZOFFSETFROM:+0800',
+  'TZOFFSETTO:+0800',
+  'TZNAME:CST',
+  'END:STANDARD',
+  'END:VTIMEZONE',
+].join('\r\n');
 const DEFAULT_PERIOD_TIMES = {
   '1-2': ['08:00', '09:40'],
   '3-4': ['10:00', '11:40'],
@@ -217,16 +229,6 @@ function buildEvents(items, start, semester, calendarHref) {
     const [sh, sm] = startTime.split(':');
     const [eh, em] = endTime.split(':');
 
-    const first = dateFor(start, weeks[0], item.day);
-    const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${item.weeks}`);
-    if (seen.has(hash)) continue;
-    seen.add(hash);
-
-    const rdates = weeks.slice(1).map(w => {
-      const d = dateFor(start, w, item.day);
-      return utcStamp(d.y, d.m, d.d, sh, sm);
-    });
-
     const description = [
       item.teacher ? `教师: ${item.teacher}` : '',
       item.courseCode ? `课程编号: ${item.courseCode}` : '',
@@ -235,34 +237,43 @@ function buildEvents(items, start, semester, calendarHref) {
       item.location ? `地点: ${item.location}` : '',
     ].filter(Boolean).join('\n');
 
-    const eventLines = [
-      'BEGIN:VEVENT',
-      `UID:${hash}@jwxt-oauth`,
-      `DTSTAMP:${stamp}`,
-      `DTSTART:${utcStamp(first.y, first.m, first.d, sh, sm)}`,
-      `DTEND:${utcStamp(first.y, first.m, first.d, eh, em)}`,
-      ...rdates.map(r => `RDATE:${r}`),
-      `SUMMARY:${icsEscape(item.name)}`,
-      item.location ? `LOCATION:${icsEscape(item.location)}` : '',
-      description ? `DESCRIPTION:${icsEscape(description)}` : '',
-      'STATUS:CONFIRMED',
-      'TRANSP:OPAQUE',
-      'CATEGORIES:课表',
-      'END:VEVENT',
-    ].filter(Boolean);
+    // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
+    for (const week of weeks) {
+      const day = dateFor(start, week, item.day);
+      const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
+      if (seen.has(hash)) continue;
+      seen.add(hash);
 
-    const ics = vcalendar([eventLines], item.name);
-    events.push({
-      hash,
-      uid: `${hash}@jwxt-oauth`,
-      summary: item.name,
-      href: `${calendarHref}${hash}.ics`,
-      etag: `"${sha256(ics).slice(0, 32)}"`,
-      ics,
-      eventLines,
-    });
+      const eventLines = [
+        'BEGIN:VEVENT',
+        `UID:${hash}@jwxt-oauth`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${utcStamp(day.y, day.m, day.d, sh, sm)}`,
+        `DTEND:${utcStamp(day.y, day.m, day.d, eh, em)}`,
+        `SUMMARY:${icsEscape(item.name)}`,
+        item.location ? `LOCATION:${icsEscape(item.location)}` : '',
+        description ? `DESCRIPTION:${icsEscape(description)}` : '',
+        'STATUS:CONFIRMED',
+        'TRANSP:OPAQUE',
+        'CATEGORIES:课表',
+        'END:VEVENT',
+      ].filter(Boolean);
+
+      const ics = vcalendar([eventLines], item.name);
+      events.push({
+        hash,
+        uid: `${hash}@jwxt-oauth`,
+        summary: item.name,
+        href: `${calendarHref}${hash}.ics`,
+        etag: `"${sha256(ics).slice(0, 32)}"`,
+        ics,
+        eventLines,
+        start: utcStamp(day.y, day.m, day.d, sh, sm),
+      });
+    }
   }
 
+  events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   return events;
 }
 
@@ -313,6 +324,10 @@ function propXml(name, ctx) {
       return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.username || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
     case 'current-user-privilege-set':
       return '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>';
+    case 'group-membership':
+      return '<D:group-membership/>';
+    case 'source':
+      return '<CS:source/>';
     case 'supported-calendar-component-set':
       return '<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>';
     case 'getetag':
@@ -327,9 +342,31 @@ function propXml(name, ctx) {
     case 'owner':
       return `<D:owner><D:href>${ctx.paths.principal}</D:href></D:owner>`;
     case 'supported-report-set':
-      return '<D:supported-report-set><D:supported-report><D:report><C:calendar-query/></D:report></D:supported-report><D:supported-report><D:report><C:calendar-multiget/></D:report></D:supported-report></D:supported-report-set>';
+      return '<D:supported-report-set><D:supported-report><D:report><C:calendar-query/></D:report></D:supported-report><D:supported-report><D:report><C:calendar-multiget/></D:report></D:supported-report><D:supported-report><D:report><D:sync-collection/></D:report></D:supported-report></D:supported-report-set>';
     case 'getctag':
       return ctx.etag ? `<CS:getctag>${xmlEscape(ctx.etag)}</CS:getctag>` : '';
+    case 'sync-token':
+      return ctx.etag ? `<D:sync-token>${xmlEscape(ctx.etag)}</D:sync-token>` : '';
+    case 'calendar-color':
+      return '<A:calendar-color>#FF9500FF</A:calendar-color>';
+    case 'calendar-order':
+      return '<A:calendar-order>1</A:calendar-order>';
+    case 'calendar-timezone':
+      return `<C:calendar-timezone>${xmlEscape(CALENDAR_TIMEZONE_ICS)}</C:calendar-timezone>`;
+    case 'supported-calendar-data':
+      return '<C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data>';
+    case 'max-resource-size':
+      return '<C:max-resource-size>10485760</C:max-resource-size>';
+    case 'min-date-time':
+      return '<C:min-date-time>20000101T000000Z</C:min-date-time>';
+    case 'max-date-time':
+      return '<C:max-date-time>20380101T000000Z</C:max-date-time>';
+    case 'schedule-calendar-transp':
+      return '<C:schedule-calendar-transp><C:opaque/></C:schedule-calendar-transp>';
+    case 'quota-available-bytes':
+      return '<D:quota-available-bytes>1073741824</D:quota-available-bytes>';
+    case 'quota-used-bytes':
+      return '<D:quota-used-bytes>0</D:quota-used-bytes>';
     default:
       return '';
   }
@@ -337,9 +374,9 @@ function propXml(name, ctx) {
 
 const DEFAULT_PROPS = {
   root: ['resourcetype', 'displayname', 'current-user-principal', 'current-user-privilege-set'],
-  principal: ['resourcetype', 'displayname', 'current-user-principal', 'principal-url', 'calendar-home-set', 'calendar-user-address-set', 'current-user-privilege-set'],
-  home: ['resourcetype', 'displayname', 'current-user-principal', 'calendar-home-set', 'current-user-privilege-set'],
-  calendar: ['resourcetype', 'displayname', 'supported-calendar-component-set', 'getetag', 'getcontenttype', 'calendar-description', 'owner', 'current-user-principal', 'calendar-home-set', 'supported-report-set', 'getctag', 'current-user-privilege-set'],
+  principal: ['resourcetype', 'displayname', 'current-user-principal', 'principal-url', 'calendar-home-set', 'calendar-user-address-set', 'current-user-privilege-set', 'group-membership'],
+  home: ['resourcetype', 'displayname', 'current-user-principal', 'calendar-home-set', 'current-user-privilege-set', 'calendar-color', 'calendar-timezone', 'source'],
+  calendar: ['resourcetype', 'displayname', 'supported-calendar-component-set', 'getetag', 'getcontenttype', 'calendar-description', 'owner', 'current-user-principal', 'calendar-home-set', 'supported-report-set', 'getctag', 'current-user-privilege-set', 'sync-token', 'calendar-color', 'calendar-order', 'calendar-timezone', 'supported-calendar-data', 'max-resource-size', 'min-date-time', 'max-date-time', 'schedule-calendar-transp', 'quota-available-bytes', 'quota-used-bytes', 'source'],
   event: ['getetag', 'getcontenttype', 'resourcetype', 'getlastmodified', 'displayname'],
 };
 const KNOWN_PROPS = new Set(Object.values(DEFAULT_PROPS).flat());
@@ -365,7 +402,11 @@ function responseXml(href, props) {
 }
 
 function multistatus(responses) {
-  return `<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">${responses.join('')}</D:multistatus>`;
+  return `<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/" xmlns:A="http://apple.com/ns/ical/">${responses.join('')}</D:multistatus>`;
+}
+
+function multistatusWithToken(responses, token) {
+  return `<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/" xmlns:A="http://apple.com/ns/ical/">${responses.join('')}<D:sync-token>${xmlEscape(token)}</D:sync-token></D:multistatus>`;
 }
 
 // ---------- HTTP ----------
@@ -442,6 +483,9 @@ async function handlePropfind(req, res, user, path) {
   const depth = String(req.headers.depth || '0').toLowerCase();
   const deep = depth === '1' || depth === 'infinity';
   const body = await readBody(req);
+  if (DEBUG) {
+    console.log(`[caldav] PROPFIND ${path.kind} depth=${depth} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
+  }
   const requested = requestedProps(body);
   const paths = pathsFor(user);
   const username = user.username || user.account;
@@ -482,7 +526,9 @@ async function handlePropfind(req, res, user, path) {
       break;
     }
   }
-  sendXml(res, multistatus(responses));
+  const xml = multistatus(responses);
+  if (DEBUG) console.log(`[caldav] PROPFIND ${path.kind} response ${xml.length} bytes\n${xml.slice(0, 6000)}`);
+  sendXml(res, xml);
 }
 
 async function handleReport(req, res, user, path) {
@@ -490,8 +536,14 @@ async function handleReport(req, res, user, path) {
     return sendText(res, 403, '只支持课表日历');
   }
   const body = await readBody(req);
+  if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
   const cal = await calendarData(user);
   let events = cal.events;
+
+  if (/sync-collection/i.test(body)) {
+    const responses = events.map(e => `<D:response><D:href>${xmlEscape(e.href)}</D:href><D:propstat><D:prop><D:getetag>${xmlEscape(e.etag)}</D:getetag><C:calendar-data>${xmlEscape(e.ics)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`);
+    return sendXml(res, multistatusWithToken(responses, cal.etag));
+  }
 
   if (/calendar-multiget/i.test(body)) {
     const norm = href => {

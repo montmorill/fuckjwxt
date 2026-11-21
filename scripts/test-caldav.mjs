@@ -110,6 +110,18 @@ try {
   const eventCount = (report.text.match(/BEGIN:VEVENT/g) || []).length;
   ok('REPORT calendar-query 返回 VEVENT', report.status === 207 && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0, `events=${eventCount}`);
 
+  const sync = await req(calHref, {
+    method: 'REPORT',
+    headers: {
+      Depth: '1',
+      'Content-Type': 'application/xml; charset=utf-8',
+    },
+    body: `<?xml version="1.0" encoding="utf-8"?><sync-collection xmlns="DAV:"><sync-token/><sync-level>1</sync-level><prop><getetag/><calendar-data xmlns="urn:ietf:params:xml:ns:caldav"/></prop></sync-collection>`,
+  });
+  const syncCount = (sync.text.match(/BEGIN:VEVENT/g) || []).length;
+  ok('REPORT sync-collection 返回独立 VEVENT 和 sync-token', sync.status === 207
+    && syncCount > 0 && sync.text.includes('<D:sync-token>') && !sync.text.includes('RDATE:'));
+
   const eventHref = report.text.match(/<D:href>([^<]+\.ics)<\/D:href>/i)?.[1];
   const event = eventHref ? await req(eventHref) : { status: 0, headers: new Headers(), text: '' };
   ok('GET 单个事件', event.status === 200 && /text\/calendar/i.test(event.headers.get('content-type') || '') && event.text.includes('BEGIN:VEVENT'));
