@@ -268,7 +268,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   const eventLines = compact
     ? [
       'BEGIN:VEVENT',
-      `UID:${hash}`,
+      `UID:${hash}@jwxt-oauth`,
       `DTSTAMP:${stamp}`,
       'SEQUENCE:3',
       `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
