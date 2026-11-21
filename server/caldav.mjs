@@ -216,18 +216,26 @@ function parseSemesterStart(html, semester) {
 }
 
 // ---------- ICS ----------
-function vcalendar(eventLineArrays, name) {
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//jwxt-oauth//CN',
-    'CALSCALE:GREGORIAN',
-    `X-WR-CALNAME:${icsEscape(name || CALENDAR_NAME)}`,
-    `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
-    ...CALENDAR_TIMEZONE_LINES,
-    ...eventLineArrays.flat(),
-    'END:VCALENDAR',
-  ];
+function vcalendar(eventLineArrays, name, { compact = false } = {}) {
+  const lines = compact
+    ? [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//jwxt-oauth//CN',
+      ...eventLineArrays.flat(),
+      'END:VCALENDAR',
+    ]
+    : [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//jwxt-oauth//CN',
+      'CALSCALE:GREGORIAN',
+      `X-WR-CALNAME:${icsEscape(name || CALENDAR_NAME)}`,
+      `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
+      ...CALENDAR_TIMEZONE_LINES,
+      ...eventLineArrays.flat(),
+      'END:VCALENDAR',
+    ];
   return lines.map(fold).join('\r\n') + '\r\n';
 }
 
@@ -242,14 +250,20 @@ function calendarLabel(user, items) {
   return { className, calendarName: `${className || user.account} 课表` };
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, calendarHref, stamp }) {
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
+  const dt = (hh, mm) => compact
+    ? `DTSTART:${localStamp(day.y, day.m, day.d, hh, mm)}`
+    : `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, hh, mm)}`;
+  const dtEnd = compact
+    ? `DTEND:${localStamp(day.y, day.m, day.d, eh, em)}`
+    : `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`;
   const eventLines = [
     'BEGIN:VEVENT',
     `UID:${hash}@jwxt-oauth`,
     `DTSTAMP:${stamp}`,
-    `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-    `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
-    ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
+    dt(sh, sm),
+    dtEnd,
+    ...rdates.map(r => compact ? `RDATE:${r}` : `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
     `SUMMARY:${icsEscape(item.name)}`,
     item.location ? `LOCATION:${icsEscape(item.location)}` : '',
     description ? `DESCRIPTION:${icsEscape(description)}` : '',
@@ -260,7 +274,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
     'END:VEVENT',
   ].filter(Boolean);
 
-  const ics = vcalendar([eventLines], item.name);
+  const ics = vcalendar([eventLines], item.name, { compact });
   return {
     hash,
     uid: `${hash}@jwxt-oauth`,
@@ -299,7 +313,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${item.name}|${item.day}|${periodKey}|${item.location}|${item.teacher}|${week}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact: true, calendarHref, stamp }));
       }
       continue;
     }
@@ -313,7 +327,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, compact: false, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
