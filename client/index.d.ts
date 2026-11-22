@@ -69,8 +69,7 @@ export interface TimetableItem {
   students: string;
   examType: string;
   hours: string;
-  rawHtml: string;
-  rawText: string;
+  raw: string;
 }
 
 export interface GradeItem {

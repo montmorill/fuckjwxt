@@ -457,13 +457,9 @@
             "type": "string",
             "example": "10.0"
           },
-          "rawHtml": {
+          "raw": {
             "type": "string",
-            "description": "详情块原始内 HTML"
-          },
-          "rawText": {
-            "type": "string",
-            "description": "去标签/解实体后的文本"
+            "description": "详情块的解码纯文本（结构化字段由它解析）"
           }
         }
       },

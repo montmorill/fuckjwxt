@@ -77,10 +77,10 @@ export function parseTimetable(html) {
       for (const li of td[3].matchAll(/<li[^>]*class="[^"]*courselists-item[^"]*"[\s\S]*?<\/li>/gi)) {
         const name = strip(li[0].match(/class="[^"]*qz-hasCourse-title[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1] ?? '');
         // 详情分散在多个 span（abbrinfo / kchSpan / dealeSpan / fzmSpan）。
-        // rawHtml 保留原始内 HTML（含 href/src/实体等），rawText 是解码后的纯文本，解析用 rawText。
+        // raw 是解码后的纯文本，结构化字段由它解析；原始 HTML 不再返回。
         const detailHtml = li[0].match(/<p[^>]*class="[^"]*qz-hasCourse-detaillists[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? '';
         const detailText = strip(detailHtml);
-        if (name) out.push({ day, period, name, ...parseCourseDetail(detailHtml, detailText), rawHtml: detailHtml.trim(), rawText: detailText });
+        if (name) out.push({ day, period, name, ...parseCourseDetail(detailHtml, detailText), raw: detailText });
       }
     }
   }

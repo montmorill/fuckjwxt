@@ -200,7 +200,7 @@ GET /docs
 | `GET /api/profile` | — | `{studentId, name, gender, college, major, className, grade}`（需 `jwxt.profile`） |
 | `GET /api/semesters` | — | `[{value,label,selected}]` |
 | `GET /api/week-range` | `semester` | `{qszc,jszc}` |
-| `GET /api/timetable` | `semester`, `week` | 课表数组（含 `rawHtml/rawText`） |
+| `GET /api/timetable` | `semester`, `week` | 课表数组（每项含 `raw` 纯文本） |
 | `GET /api/grades` | `semester` | `{code,count,data,meta}` |
 | `GET /api/exams` | `semester` | `{final, courseEnd}` |
 | `GET /api/textbooks` | — | 教材数组 |

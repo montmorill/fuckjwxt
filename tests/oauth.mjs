@@ -210,7 +210,9 @@ try {
   const RT = tok.body.refresh_token;
 
   const tt = await get('/api/timetable?semester=2026-2027-1', { Authorization: `Bearer ${AT}` });
-  ok('timetable API', tt.status === 200 && Array.isArray(tt.body.data) && tt.body.data.length > 0,
+  ok('timetable API', tt.status === 200 && Array.isArray(tt.body.data) && tt.body.data.length > 0
+    && typeof tt.body.data[0].raw === 'string'
+    && !('rawHtml' in tt.body.data[0]) && !('rawText' in tt.body.data[0]),
     `count=${tt.body.data?.length}`);
   const me = await get('/api/me', { Authorization: `Bearer ${AT}` });
   ok('me API', me.status === 200 && me.body.data?.sub === String(primary.id));

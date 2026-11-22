@@ -89,7 +89,7 @@
 - 课表：`td[name=kbDataTd] > ul[name=kbdataUl] > li.courselists-item`
   - 课程名：`.qz-hasCourse-title`
   - 详情：`p.qz-hasCourse-detaillists`（老师/时间/地点 + `kchSpan` 课程编号 + `dealeSpan` 班级/人数/考核/学时 + `fzmSpan` 分组名）
-  - 解析输出同时保留：`rawHtml`（详情块的原始内 HTML，含可能的 `href/src/实体`）与 `rawText`（去标签、解实体后的纯文本，结构化字段由它解析）
+  - 解析输出额外保留 `raw`（去标签、解实体后的纯文本）；结构化字段由它解析，不再返回原始 HTML
   - 列序号 1-7 = 周一至周日；行首 `name=timeTd` 是节次
 - 教学周历：`/jsxsd/jxzl/jxzl_query?xnxq01id=`
 - 培养方案：`/jsxsd/pyfa/topyfamx`
