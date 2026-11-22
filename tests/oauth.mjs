@@ -287,7 +287,14 @@ try {
   ok('docs page', docsPage.status === 200
     && typeof docsPage.body === 'string'
     && docsPage.body.includes('SwaggerUIBundle')
-    && docsPage.body.includes('/openapi.json'));
+    && docsPage.body.includes('/openapi.json')
+    && docsPage.body.includes('usePkceWithAuthorizationCodeGrant'));
+
+  const redirectPage = await get('/docs/oauth2-redirect.html');
+  const redirectJs = await get('/docs/oauth2-redirect.js');
+  ok('oauth2 redirect assets', redirectPage.status === 200 && redirectJs.status === 200
+    && String(redirectPage.body).includes('oauth2-redirect.js')
+    && String(redirectJs.body).includes('swaggerUIRedirectOauth2'));
 
   // ---------- 多用户 ----------
   const bob = await postJson('/admin/users', {
