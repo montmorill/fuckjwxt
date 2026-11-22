@@ -275,6 +275,6 @@ tests/
 
 ## 已验证
 
-- OAuth 端到端 **47 项**：服务登录、未设服务密码时回退教务密码、账号自助页、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
+- OAuth 端到端 **48 项**：服务登录、未设服务密码时回退教务密码、账号自助页、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
 - CalDAV **22 项**：PROPFIND（含 `/.well-known/caldav`、根路径、标准首页与 OPPO 课程首页）/REPORT（calendar-query、multiget、sync-collection、OPPO 独立事件）/GET、ETag/304、订阅 URL（token / 学号+密码）、错误密码 401。
 - 客户端 **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

@@ -225,7 +225,6 @@ const accountStyle = `
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
   table.tokens th{color:#6b7280;font-weight:500;white-space:nowrap}
-  table.tokens tr.revoked td{color:#9ca3af}
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
   .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
   .steps li{margin:4px 0}
@@ -236,17 +235,12 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   const fmt = ts => ts ? new Date(ts * 1000).toLocaleString('zh-CN', {
     timeZone: 'Asia/Shanghai', hour12: false,
   }) : '—';
-  const rows = tokens.map(t => {
-    const revoked = Boolean(t.revoked_at);
-    const action = revoked ? '' : `<form method="post" action="/account/caldav-tokens/${t.id}/delete" onsubmit="return confirm('撤销这个订阅链接？')"><input type="hidden" name="csrf" value="${htmlEscape(csrf)}"><button class="link" type="submit">撤销</button></form>`;
-    return `<tr class="${revoked ? 'revoked' : ''}">
+  const rows = tokens.filter(t => !t.revoked_at).map(t => `<tr>
       <td>${htmlEscape(t.label || '未命名')}</td>
       <td>${fmt(t.created_at)}</td>
       <td>${fmt(t.last_used_at)}</td>
-      <td>${revoked ? '已撤销' : '使用中'}</td>
-      <td>${action}</td>
-    </tr>`;
-  }).join('');
+      <td><form method="post" action="/account/caldav-tokens/${t.id}/delete" onsubmit="return confirm('撤销这个订阅链接？')"><input type="hidden" name="csrf" value="${htmlEscape(csrf)}"><button class="link" type="submit">撤销</button></form></td>
+    </tr>`).join('');
   const tokenBox = newToken ? `<div class="token-box">
     <strong>已生成「${htmlEscape(newToken.label)}」</strong>
     <p>以下内容只显示这一次，请立即保存：</p>
@@ -263,7 +257,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <p class="muted">Apple/Google 日历用链接；CalDAV 账户用户名填学号，密码填 token。</p>
   </div>` : '';
   const tokenTable = rows ? `<div class="table-wrap"><table class="tokens">
-    <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th>状态</th><th></th></tr></thead>
+    <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>` : '<p class="muted">还没有订阅链接。</p>';
 

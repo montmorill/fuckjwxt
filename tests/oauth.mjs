@@ -166,10 +166,11 @@ try {
   ok('account page', accountPage.status === 200 && accountHtml.includes('我的账号'));
 
   const accountCsrf = csrfOf(accountHtml);
+  const accountLabel = 'test-account-' + Date.now();
   const createdSub = await web('/account/caldav-tokens', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ csrf: accountCsrf, label: 'test-account' }).toString(),
+    body: new URLSearchParams({ csrf: accountCsrf, label: accountLabel }).toString(),
   }, primaryJar);
   const createdSubHtml = await createdSub.text();
   ok('account create subscription', createdSub.status === 200 && createdSubHtml.includes('/caldav/feed/') && createdSubHtml.includes('id="new-token"'));
@@ -183,6 +184,10 @@ try {
       body: new URLSearchParams({ csrf: accountCsrf }).toString(),
     }, primaryJar);
     ok('account revoke subscription', revokedSub.status === 302);
+
+    const afterRevoke = await web('/account', {}, primaryJar);
+    const afterRevokeHtml = await afterRevoke.text();
+    ok('revoked token hidden', !afterRevokeHtml.includes(accountLabel));
   }
 
   // ---------- clients ----------
