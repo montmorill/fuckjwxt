@@ -11,7 +11,7 @@
 - `/docs` —— 在线 API 文档（Swagger UI，从 `/openapi.json` 渲染；前端资源走 cdnjs）。支持授权码 + PKCE 登录，客户端 redirect URI 用 `http://<host>:8787/docs/oauth2-redirect.html`。
 - `/` —— 账号自助页：登录后生成/撤销自己的 CalDAV token / .ics 订阅链接。
 - `/info` —— 服务信息 JSON。
-- [`docs/CALDAV.md`](docs/CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
+- [`docs/CALDAV.md`](docs/CALDAV.md) —— 只读 CalDAV：把课程表添加到系统日历
 - [`client/README.md`](client/README.md) —— 客户端：PKCE、自动刷新、数据 API 封装
 
 ## 目录

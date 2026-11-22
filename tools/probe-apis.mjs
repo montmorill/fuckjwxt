@@ -10,8 +10,8 @@ if (r.location) await request(jar, new URL(r.location, location).href);
 const calls = [
   ['成绩列表', '/jsxsd/kscj/cjcx_list?pageNum=1&pageSize=5&kksj=&kcxz=&kcsx=&kcmc=&xsfs=all&sfxsbcxq=1&fxkcmc=&zxsbjg='],
   ['考试安排', '/jsxsd/xsks/xsksap_list?pageNum=1&pageSize=5&xnxqid=2026-2027-1&xqlb='],
-  ['课表(viweType=0)', '/jsxsd/xskb/xskb_list.do?viweType=0'],
-  ['课表(viweType=1)', '/jsxsd/xskb/xskb_list.do?viweType=1'],
+  ['课程表(viweType=0)', '/jsxsd/xskb/xskb_list.do?viweType=0'],
+  ['课程表(viweType=1)', '/jsxsd/xskb/xskb_list.do?viweType=1'],
   ['学籍子表-奖励', '/jsxsd/grxx/queryXsxx_jlxx'],
   ['学籍子表-家庭', '/jsxsd/grxx/queryXsxx_jtcy'],
   ['专业排名', '/jsxsd/view/xsxj/xscjpm.jsp'],

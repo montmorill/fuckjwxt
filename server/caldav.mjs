@@ -1,4 +1,4 @@
-// 只读 CalDAV：把课表转成 VEVENT，支持 PROPFIND / REPORT / GET。
+// 只读 CalDAV：把课程表转成 VEVENT，支持 PROPFIND / REPORT / GET。
 // 认证：Basic（users.account + 该用户的 CalDAV token）或 OAuth Bearer（jwxt.read）。
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -9,11 +9,11 @@ import * as db from './db.mjs';
 import { authenticateBearer } from './oauth.mjs';
 import { jwxt } from './jwxt-service.mjs';
 
-const CALENDAR_NAME = '课表';
+const CALENDAR_NAME = '课程表';
 const CALENDAR_TIMEZONE = 'Asia/Shanghai';
 const DEBUG = process.env.CALDAV_DEBUG === '1';
 if (process.env.CALDAV_FIXTURE === '1') {
-  console.warn('[caldav] fixture mode: using tests/fixtures/timetable.json（不会读取真实课表）');
+  console.warn('[caldav] fixture mode: using tests/fixtures/timetable.json（不会读取真实课程表）');
 }
 const CALENDAR_TIMEZONE_LINES = [
   'BEGIN:VTIMEZONE',
@@ -260,15 +260,15 @@ function calendarLabel(user, items) {
   }
   const className = [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'))[0]?.[0] || '';
-  return { className, calendarName: `${className || user.account} 课表` };
+  return { className, calendarName: `${className || user.account} 课程表` };
 }
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
   const esc = compact ? icsEscapeOppo : icsEscapeRfc;
   const splitList = value => String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
   const categoryParts = (compact
-    ? ['课表', ...splitList(item.className), ...splitList(item.teacher)]
-    : ['课表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
+    ? ['课程表', ...splitList(item.className), ...splitList(item.teacher)]
+    : ['课程表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
   ).filter(Boolean);
   const categories = categoryParts.map(esc).join(',');
   const eventLines = compact
@@ -463,7 +463,7 @@ function propXml(name, ctx) {
     case 'getlastmodified':
       return ctx.lastModified ? `<D:getlastmodified>${xmlEscape(ctx.lastModified)}</D:getlastmodified>` : '';
     case 'calendar-description':
-      return `<C:calendar-description>${xmlEscape(ctx.description || '强智教务课表')}</C:calendar-description>`;
+      return `<C:calendar-description>${xmlEscape(ctx.description || '强智教务课程表')}</C:calendar-description>`;
     case 'owner':
       return `<D:owner><D:href>${ctx.paths.principal}</D:href></D:owner>`;
     case 'supported-report-set':
@@ -675,7 +675,7 @@ async function handlePropfind(req, res, user, path, url) {
             });
           }
         } else {
-          // 其他客户端：一个课表合集，事件级颜色/分类
+          // 其他客户端：一个课程表合集，事件级颜色/分类
           add(paths.calendar, {
             kind: 'calendar',
             displayname: calendarName,
@@ -717,7 +717,7 @@ async function handlePropfind(req, res, user, path, url) {
 
 async function handleReport(req, res, user, path) {
   if (path.kind !== 'calendar' && path.kind !== 'feed') {
-    return sendText(res, 403, '只支持课表日历');
+    return sendText(res, 403, '只支持课程表日历');
   }
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);

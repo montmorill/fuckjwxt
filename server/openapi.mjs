@@ -169,7 +169,7 @@ const paths = {
 
   '/api/timetable': {
     get: dataOp({
-      summary: '课表',
+      summary: '课程表',
       schema: 'TimetableResponse',
       parameters: [
         q('semester', { type: 'string' }, { example: '2026-2027-1' }),

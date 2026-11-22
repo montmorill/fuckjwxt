@@ -57,7 +57,7 @@ export const config = {
   sessionTtl: Number(process.env.SERVICE_SESSION_TTL || 604800),      // 秒，7 天
   cookieSecure: issuer.startsWith('https://'),
 
-  // CalDAV（只读课表）
+  // CalDAV（只读课程表）
   // 学期/开学日期/作息不再走 env：学期按用户，开学日期从教学周历解析，作息在 config/period-times.json
   caldavCacheMs: Number(process.env.CALDAV_CACHE_MS || 300000),     // 5 分钟
 };

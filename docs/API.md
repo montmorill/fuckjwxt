@@ -32,7 +32,7 @@
 |---|---|---|---|---|
 | 学期列表 | `/jsxsd/xskb/xskb_list.do?viweType=0` | 无 | HTML 中的 `#xnxq01id` options | 2026-2027-1/2 |
 | 周次范围 | `/jsxsd/xskb/jxzlzc_xnxq_ajax` | `xnxq01id=2026-2027-1` | JSON `[{qszc:1,jszc:20}]` | ✓ |
-| 课表 | `/jsxsd/xskb/xskb_list.do?viweType=0` | 可选 `xnxq01id`、`zc`(第几周) | HTML 表格 | 32 条课程 |
+| 课程表 | `/jsxsd/xskb/xskb_list.do?viweType=0` | 可选 `xnxq01id`、`zc`(第几周) | HTML 表格 | 32 条课程 |
 | 结课考试 | `/jsxsd/xsks/xsstk_list` | `pageNum,pageSize,xnxqid` | JSON | 3 场 |
 | 教材 | `/jsxsd/jcgl/bjjcdg_query?reqType=listData` | 无 | JSON | 7 本 |
 | 教材订购计划 | `/jsxsd/jcgl/jcjhcx_list?reqType=listData` | `xnxqid`（注意不是 xnxq01id）、`kcfx` | JSON | 7 条，`msg=不在控制时间内!`（列表可读，订购未开放） |
@@ -86,7 +86,7 @@
 
 `/jsxsd/module/...` 菜单里的 54 个页面全部可访问（见 `docs/site/menu.json`）。数据较多、值得直接解析的：
 
-- 课表：`td[name=kbDataTd] > ul[name=kbdataUl] > li.courselists-item`
+- 课程表：`td[name=kbDataTd] > ul[name=kbdataUl] > li.courselists-item`
   - 课程名：`.qz-hasCourse-title`
   - 详情：`p.qz-hasCourse-detaillists`（老师/时间/地点 + `kchSpan` 课程编号 + `dealeSpan` 班级/人数/考核/学时 + `fzmSpan` 分组名）
   - 解析输出额外保留 `raw`（去标签、解实体后的纯文本）；结构化字段由它解析，不再返回原始 HTML
@@ -105,7 +105,7 @@
 
 | 数据 | 接口 | 数量 |
 |---|---|---|
-| 课表 | `xskb_list.do?viweType=0` | 32 条课程 |
+| 课程表 | `xskb_list.do?viweType=0` | 32 条课程 |
 | 结课考试 | `xsks/xsstk_list` | 3 场 |
 | 教材 | `jcgl/bjjcdg_query` | 7 本 |
 | 执行计划 | `pyfa/pyfa_query` (POST) | 21 门 |
@@ -167,7 +167,7 @@
 
 1. 列表接口不带 `X-Requested-With: XMLHttpRequest` 会返回整页 HTML（`ggly/*` 实测）。
 2. `pyfa_query?islist=1` 必须 POST 表单，GET 只回页面。
-3. 教材订购计划的学期参数是 `xnxqid`；教材查询/考试/课表用 `xnxq01id` 或 `xnxqid`，不同模块不统一。
+3. 教材订购计划的学期参数是 `xnxqid`；教材查询/考试/课程表用 `xnxq01id` 或 `xnxqid`，不同模块不统一。
 4. `bzb_jsxsd` 是第二套会话；只拿 `bzb_njw` 访问 `/jsxsd/*` 会掉登录。
 5. `xszpLoad` 是 JPEG，按文本读会损坏，要用 `arrayBuffer`。
 6. 学籍类接口含身份证号、手机号、家庭住址，落盘/日志时注意脱敏；`docs/site/` 已加入 `.gitignore`。

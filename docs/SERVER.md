@@ -189,7 +189,7 @@ GET /docs
 
 | scope | 作用 |
 |---|---|
-| `jwxt.read` | 课表、成绩、考试、教材、培养方案课程、消息、公告 |
+| `jwxt.read` | 课程表、成绩、考试、教材、培养方案课程、消息、公告 |
 | `jwxt.profile` | 个人信息（含姓名等 PII） |
 | `offline_access` | 签发 refresh token |
 
@@ -201,7 +201,7 @@ GET /docs
 | `GET /api/profile` | — | `{studentId, name, gender, college, major, className, grade}`（需 `jwxt.profile`） |
 | `GET /api/semesters` | — | `[{value,label,selected}]` |
 | `GET /api/week-range` | `semester` | `{qszc,jszc}` |
-| `GET /api/timetable` | `semester`, `week` | 课表数组（每项含 `raw` 纯文本） |
+| `GET /api/timetable` | `semester`, `week` | 课程表数组（每项含 `raw` 纯文本） |
 | `GET /api/grades` | `semester` | `{code,count,data,meta}` |
 | `GET /api/exams` | `semester` | `{final, courseEnd}` |
 | `GET /api/textbooks` | — | 教材数组 |
@@ -262,7 +262,7 @@ server/
   openapi.mjs       OpenAPI 路由元数据
   jwxt/
     login.mjs       强智登录（Cookie 罐、sess 编码、重试）
-    api.mjs         登录后的只读数据接口（课表/成绩/考试/教材等）
+    api.mjs         登录后的只读数据接口（课程表/成绩/考试/教材等）
   index.mjs         HTTP 服务与路由
 scripts/
   admin.mjs         密钥/用户/CalDAV token/客户端管理

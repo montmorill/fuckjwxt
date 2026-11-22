@@ -1,6 +1,6 @@
-# CalDAV（只读课表，多用户）
+# CalDAV（只读课程表，多用户）
 
-把每个用户的当前学期课表转成 VEVENT。手机/桌面日历可以添加 CalDAV 账户，或用 `.ics` 订阅。
+把每个用户的当前学期课程表转成 VEVENT。手机/桌面日历可以添加 CalDAV 账户，或用 `.ics` 订阅。
 
 ## 启用与签发 token
 
@@ -37,7 +37,7 @@ http://<host>:8787/caldav/
 |---|---|
 | iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填学号，密码填该用户的 CalDAV token（或强智密码） |
 | Thunderbird | 新建日历 → 网络上 → CalDAV；URL 同上 + 用户名/密码 |
-| DAVx5 (Android) | 添加账户 → URL + 用户名密码 → 选择该用户的“课表” |
+| DAVx5 (Android) | 添加账户 → URL + 用户名密码 → 选择该用户的“课程表” |
 | 只读订阅（Apple 日历、Google 日历等） | `https://<host>:8787/caldav/feed/<token>.ics`（token 即 CalDAV token，URL 本身就是凭据） |
 | 只读订阅（学号 + 密码） | `https://<host>:8787/caldav/feed/<学号>/<密码>.ics`（密码可为 CalDAV token 或教务密码；特殊字符需 URL 编码） |
 
@@ -90,7 +90,7 @@ https://<host>:8787/caldav/feed/<学号>/<密码>.ics
 
 ## 数据与时间
 
-- OPPO 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`，事件写 `CATEGORIES:课表,班级,教师`；其他客户端使用 `timetable` 合集，事件写 `COLOR` 和 `CATEGORIES:课表,班级,科目,教师`（多个班级/教师会拆成多个分类）。
+- OPPO 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`，事件写 `CATEGORIES:课程表,班级,教师`；其他客户端使用 `timetable` 合集，事件写 `COLOR` 和 `CATEGORIES:课程表,班级,科目,教师`（多个班级/教师会拆成多个分类）。
 - 普通客户端按 RFC 写 `\,`，由客户端还原英文逗号；OPPO 不还原转义，因此自由文本用 `、`，班级则按逗号拆成多个分类。
 - 默认每个课程条目生成一个 VEVENT，多周用 `RDATE` 展开。
 - 检测到 `User-Agent` 含 `OPPO`（OPPO 日历不展开 `RDATE`）时，改为每个上课日一个独立 VEVENT，同一课程不同周次使用不同 UID。
@@ -111,7 +111,7 @@ https://<host>:8787/caldav/feed/<学号>/<密码>.ics
   }
   ```
 
-- 日历显示名使用“班级 课表”，没有班级时用“学号 课表”。
+- 日历显示名使用“班级 课程表”，没有班级时用“学号 课程表”。
 - 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件备注只保留教师，单行显示，避免换行/转义问题。
 - 每个事件带 `COLOR:#RRGGBB`，按课程名稳定分配颜色；是否显示取决于客户端，部分客户端只支持日历级颜色。
 

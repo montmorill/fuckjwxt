@@ -115,7 +115,7 @@ try {
 
   const calHref = homeHref.replace(/\/?$/, '/') + 'timetable/';
   const cal = await propfind(calHref, 0, '<D:resourcetype/><D:displayname/>');
-  ok('PROPFIND 日历集合是 calendar', cal.status === 207 && cal.text.includes('<C:calendar/>') && cal.text.includes('课表'));
+  ok('PROPFIND 日历集合是 calendar', cal.status === 207 && cal.text.includes('<C:calendar/>') && cal.text.includes('课程表'));
 
   const report = await req(calHref, {
     method: 'REPORT',
@@ -177,7 +177,7 @@ try {
   ok('GET 日历集合（.ics）', feed.status === 200 && /text\/calendar/i.test(feed.headers.get('content-type') || '')
     && feed.text.includes('BEGIN:VCALENDAR') && feed.text.includes('DTSTART;TZID=Asia/Shanghai:')
     && feed.text.includes('DESCRIPTION:教师：')
-    && feed.text.includes('CATEGORIES:课表,')
+    && feed.text.includes('CATEGORIES:课程表,')
     && !feed.text.includes('STATUS:')
     && !feed.text.includes('TRANSP:')
     && /COLOR:#[0-9A-F]{6}/.test(feed.text)

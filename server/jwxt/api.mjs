@@ -43,7 +43,7 @@ export async function getWeekRange(s, semester) {
   return Array.isArray(j) ? j[0] : j;
 }
 
-// ---- 课表 ----
+// ---- 课程表 ----
 function parseCourseDetail(detailHtml, detailText) {
   // 老师/时间/地点只在 abbrinfo 这个 span 里；分开取可避免 linkSpan 等文本混进来
   const abbrHtml = detailHtml.match(/<span[^>]*qz-hasCourse-abbrinfo[^>]*>([\s\S]*?)<\/span>/i)?.[1];
@@ -219,7 +219,7 @@ if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\
   console.log('学期:', semesters.map(x => x.value + (x.selected ? '*' : '')).join(', '), '| 当前:', cur);
 
   const tt = await getTimetable(s, { semester: cur });
-  console.log(`\n课表: ${tt.length} 条`);
+  console.log(`\n课程表: ${tt.length} 条`);
   for (const c of tt.slice(0, 6)) console.log(`  周${c.day} ${c.period} ${c.name} | ${c.teacher} | ${c.timeText} | ${c.location}`);
 
   const grades = await getGrades(s);

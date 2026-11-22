@@ -177,7 +177,7 @@ export function renderLoginPage({ csrf, next, error = '', account = '' }) {
 }
 
 const SCOPE_DESC = {
-  'jwxt.read': '读取课表、成绩、考试、教材等',
+  'jwxt.read': '读取课程表、成绩、考试、教材等',
   'jwxt.profile': '读取学籍信息（包含姓名等个人信息）',
   'offline_access': '允许长期访问（签发 refresh token）',
 };

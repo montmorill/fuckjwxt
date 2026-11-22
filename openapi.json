@@ -40,7 +40,7 @@
             "tokenUrl": "http://localhost:8787/oauth/token",
             "refreshUrl": "http://localhost:8787/oauth/token",
             "scopes": {
-              "jwxt.read": "课表/成绩/考试/教材/培养方案/消息/公告",
+              "jwxt.read": "课程表/成绩/考试/教材/培养方案/消息/公告",
               "jwxt.profile": "学籍基本信息（含 PII）",
               "offline_access": "签发 refresh token"
             }
@@ -54,7 +54,7 @@
           "clientCredentials": {
             "tokenUrl": "http://localhost:8787/oauth/token",
             "scopes": {
-              "jwxt.read": "课表/成绩/考试/教材/培养方案/消息/公告",
+              "jwxt.read": "课程表/成绩/考试/教材/培养方案/消息/公告",
               "jwxt.profile": "学籍基本信息（含 PII）"
             }
           }
@@ -1547,7 +1547,7 @@
         "tags": [
           "JWXT"
         ],
-        "summary": "课表",
+        "summary": "课程表",
         "security": [
           {
             "oauth2AuthCode": [
