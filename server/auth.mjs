@@ -206,3 +206,95 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
   <p class="muted">客户端：<code>${htmlEscape(client.client_id)}</code></p>
 </div></body></html>`;
 }
+
+const accountStyle = `
+  .card.wide{max-width:760px}
+  h2{font-size:16px;margin:26px 0 8px}
+  .row{display:flex;gap:10px;align-items:flex-end;margin:6px 0 4px}
+  .row label{flex:0 0 auto;margin:0;white-space:nowrap}
+  .row input[type=text]{flex:1}
+  .row button{flex:0 0 auto;margin:0}
+  .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:16px 0;font-size:14px}
+  .token-box p{margin:6px 0}
+  .token-url{display:block;word-break:break-all;line-height:1.6;margin:8px 0;background:#fff}
+  .table-wrap{overflow-x:auto}
+  table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+  table.tokens th{color:#6b7280;font-weight:500;white-space:nowrap}
+  table.tokens tr.revoked td{color:#9ca3af}
+  button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
+  .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
+  .steps li{margin:4px 0}
+  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}}
+`;
+
+export function renderAccountPage({ user, csrf, tokens, newToken = null, error = '' }) {
+  const fmt = ts => ts ? new Date(ts * 1000).toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai', hour12: false,
+  }) : '—';
+  const rows = tokens.map(t => {
+    const revoked = Boolean(t.revoked_at);
+    const action = revoked ? '' : `<form method="post" action="/account/caldav-tokens/${t.id}/delete" onsubmit="return confirm('撤销这个订阅链接？')"><input type="hidden" name="csrf" value="${htmlEscape(csrf)}"><button class="link" type="submit">撤销</button></form>`;
+    return `<tr class="${revoked ? 'revoked' : ''}">
+      <td>${htmlEscape(t.label || '未命名')}</td>
+      <td>${fmt(t.created_at)}</td>
+      <td>${fmt(t.last_used_at)}</td>
+      <td>${revoked ? '已撤销' : '使用中'}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
+  const tokenBox = newToken ? `<div class="token-box">
+    <strong>已生成「${htmlEscape(newToken.label)}」</strong>
+    <p>这个链接只显示这一次，请立即复制保存：</p>
+    <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
+    <div class="actions"><button class="primary" type="button" onclick="copyUrl(this)">复制链接</button></div>
+  </div>` : '';
+  const tokenTable = rows ? `<div class="table-wrap"><table class="tokens">
+    <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th>状态</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>` : '<p class="muted">还没有订阅链接。</p>';
+
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>我的账号 · 强智 Gateway</title><style>${pageStyle}${accountStyle}</style></head><body>
+<div class="card wide">
+  <h1>我的账号</h1>
+  <p class="sub">学号 <strong>${htmlEscape(user.account)}</strong></p>
+  ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
+  ${tokenBox}
+  <h2>订阅链接</h2>
+  <form method="post" action="/account/caldav-tokens" class="row">
+    <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
+    <label for="label">备注</label>
+    <input id="label" name="label" type="text" maxlength="64" placeholder="手机 / 电脑 / iPad">
+    <button class="primary" type="submit">生成订阅链接</button>
+  </form>
+  ${tokenTable}
+  <h2>怎么添加</h2>
+  <ol class="steps">
+    <li><strong>iPhone</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历，粘贴链接。</li>
+    <li><strong>macOS</strong>：日历 → 文件 → 新建日历订阅，粘贴链接。</li>
+    <li><strong>Android</strong>：日历 App → 添加日历 → 通过 URL 订阅。</li>
+  </ol>
+  <p class="muted">链接就是密码，不要发给别人；不用时点“撤销”。<a href="/logout">退出登录</a></p>
+</div>
+<script>
+  function copyUrl(btn) {
+    const el = document.getElementById('new-url');
+    if (!el) return;
+    const text = el.textContent;
+    const done = () => { btn.textContent = '已复制'; setTimeout(() => { btn.textContent = '复制链接'; }, 1200); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {});
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch {}
+      ta.remove();
+    }
+  }
+</script>
+</body></html>`;
+}

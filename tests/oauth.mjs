@@ -160,6 +160,31 @@ try {
   const badLogin = await serviceLogin(badLoginJar, primary.account, 'wrong-pass');
   ok('wrong service password rejected', badLogin.status === 401);
 
+  // ---------- account self-service ----------
+  const accountPage = await web('/account', {}, primaryJar);
+  const accountHtml = await accountPage.text();
+  ok('account page', accountPage.status === 200 && accountHtml.includes('我的账号'));
+
+  const accountCsrf = csrfOf(accountHtml);
+  const createdSub = await web('/account/caldav-tokens', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ csrf: accountCsrf, label: 'test-account' }).toString(),
+  }, primaryJar);
+  const createdSubHtml = await createdSub.text();
+  ok('account create subscription', createdSub.status === 200 && createdSubHtml.includes('/caldav/feed/'));
+
+  const subTokenId = [...createdSubHtml.matchAll(/\/account\/caldav-tokens\/(\d+)\/delete/g)].pop()?.[1];
+  ok('account token listed', Boolean(subTokenId));
+  if (subTokenId) {
+    const revokedSub = await web(`/account/caldav-tokens/${subTokenId}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrf: accountCsrf }).toString(),
+    }, primaryJar);
+    ok('account revoke subscription', revokedSub.status === 302);
+  }
+
   // ---------- clients ----------
   const conf = await postJson('/admin/clients', {
     name: 'test-conf',

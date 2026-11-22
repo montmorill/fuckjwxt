@@ -15,7 +15,7 @@ import { handleCalDav, clearCache as clearCalDavCache } from './caldav.mjs';
 import { renderDocsPage, oauth2RedirectHtml, oauth2RedirectJs } from './docs.mjs';
 import {
   getSessionFromRequest, getSessionUser, createAnonymousSession, rotateSession, destroySession,
-  sidFromRequest, safeNext, renderLoginPage, renderConsentPage, verifyUserPassword,
+  sidFromRequest, safeNext, renderLoginPage, renderConsentPage, renderAccountPage, verifyUserPassword,
   loginAllowed, recordLoginFailure, clearLoginFailures,
 } from './auth.mjs';
 
@@ -219,6 +219,58 @@ const logoutHandler = async ({ req, res }) => {
 };
 add('GET', '/logout', logoutHandler, { skipOpenApi: true });
 add('POST', '/logout', logoutHandler, { skipOpenApi: true });
+
+// ---------- routes: account self-service ----------
+add('GET', '/account', async ({ req, res }) => {
+  const current = getSessionUser(req);
+  if (!current) return redirect(res, '/login?next=/account');
+  sendHtml(res, 200, renderAccountPage({
+    user: current.user,
+    csrf: current.session.csrf_token,
+    tokens: listCalDavTokens(current.user.id),
+  }));
+}, { skipOpenApi: true });
+
+add('POST', '/account/caldav-tokens', async ({ req, res }) => {
+  const current = getSessionUser(req);
+  if (!current) return redirect(res, '/login?next=/account');
+  const form = await parseForm(req);
+  if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
+    return sendHtml(res, 400, renderAccountPage({
+      user: current.user,
+      csrf: current.session.csrf_token,
+      tokens: listCalDavTokens(current.user.id),
+      error: '会话已过期，请重试',
+    }));
+  }
+  const label = String(form.label || '').trim().slice(0, 64);
+  const token = randomToken(32);
+  createCalDavToken({ userId: current.user.id, label: label || null, tokenHash: hashToken(token) });
+  const url = `${config.issuer}/caldav/feed/${encodeURIComponent(current.user.account)}/${encodeURIComponent(token)}.ics`;
+  sendHtml(res, 200, renderAccountPage({
+    user: current.user,
+    csrf: current.session.csrf_token,
+    tokens: listCalDavTokens(current.user.id),
+    newToken: { label: label || '未命名', url },
+  }));
+}, { skipOpenApi: true });
+
+add('POST', '/account/caldav-tokens/:tokenId/delete', async ({ req, res, params }) => {
+  const current = getSessionUser(req);
+  if (!current) return redirect(res, '/login?next=/account');
+  const form = await parseForm(req);
+  if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
+    return sendHtml(res, 400, renderAccountPage({
+      user: current.user,
+      csrf: current.session.csrf_token,
+      tokens: listCalDavTokens(current.user.id),
+      error: '会话已过期，请重试',
+    }));
+  }
+  const tokenId = Number(params.tokenId);
+  if (tokenId) revokeCalDavToken(tokenId, current.user.id);
+  redirect(res, '/account');
+}, { skipOpenApi: true });
 
 // ---------- routes: oauth ----------
 add('GET', '/oauth/authorize', async ({ req, res, query }) => {

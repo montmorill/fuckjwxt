@@ -9,6 +9,7 @@
 - [`docs/SERVER.md`](docs/SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 - `/docs` —— 在线 API 文档（Swagger UI，从 `/openapi.json` 渲染；前端资源走 cdnjs）。支持授权码 + PKCE 登录，客户端 redirect URI 用 `http://<host>:8787/docs/oauth2-redirect.html`。
+- `/account` —— 账号自助页：登录后生成/撤销自己的 CalDAV 订阅链接。
 - [`docs/CALDAV.md`](docs/CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
 - [`client/README.md`](client/README.md) —— 客户端：PKCE、自动刷新、数据 API 封装
 
