@@ -208,7 +208,7 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
 }
 
 const accountStyle = `
-  .card.wide{max-width:760px}
+  .card.wide{max-width:860px}
   h2{font-size:16px;margin:26px 0 8px}
   .row{display:flex;gap:10px;align-items:flex-end;margin:6px 0 4px}
   .row label{flex:0 0 auto;margin:0;white-space:nowrap}
@@ -219,8 +219,10 @@ const accountStyle = `
   .token-url{display:block;word-break:break-all;line-height:1.6;margin:8px 0;background:#fff}
   .token-field{display:flex;gap:8px;align-items:flex-start;margin:10px 0}
   .token-label{flex:0 0 110px;font-size:12px;color:#6b7280;padding-top:8px}
+  .cred-title{font-size:13px;font-weight:600;margin:14px 0 4px;color:#065f46}
   .token-field .token-url{flex:1;margin:0}
   .token-field button.slim{flex:0 0 auto;margin:0;padding:8px 10px;font-size:13px}
+  table.how td{font-size:13px;line-height:1.55}
   .table-wrap{overflow-x:auto}
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
@@ -246,22 +248,34 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   const tokenBox = newToken ? `<div class="token-box">
     <strong>已生成「${htmlEscape(newToken.label)}」</strong>
     <p>以下内容只显示这一次，请立即保存：</p>
+    <div class="cred-title">CalDAV 账户（推荐）</div>
     <div class="token-field">
-      <div class="token-label">.ics 订阅链接</div>
-      <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
-      <button class="secondary slim" type="button" onclick="copyText('new-url', this)">复制</button>
+      <div class="token-label">服务器</div>
+      <code id="new-server" class="token-url">${htmlEscape(config.issuer + '/caldav/')}</code>
+      <button class="secondary slim" type="button" onclick="copyText('new-server', this)">复制</button>
     </div>
     <div class="token-field">
-      <div class="token-label">CalDAV 密码（token）</div>
+      <div class="token-label">用户名</div>
+      <code id="new-user" class="token-url">${htmlEscape(user.account)}</code>
+      <button class="secondary slim" type="button" onclick="copyText('new-user', this)">复制</button>
+    </div>
+    <div class="token-field">
+      <div class="token-label">密码（token）</div>
       <code id="new-token" class="token-url">${htmlEscape(newToken.token)}</code>
       <button class="secondary slim" type="button" onclick="copyText('new-token', this)">复制</button>
     </div>
-    <p class="muted">Apple/Google 日历用链接；CalDAV 账户用户名填学号，密码填 token。</p>
+    <div class="cred-title">.ics 订阅链接（不支持 CalDAV 的客户端）</div>
+    <div class="token-field">
+      <div class="token-label">链接</div>
+      <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
+      <button class="secondary slim" type="button" onclick="copyText('new-url', this)">复制</button>
+    </div>
+    <p class="muted">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。</p>
   </div>` : '';
   const tokenTable = rows ? `<div class="table-wrap"><table class="tokens">
     <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
-  </table></div>` : '<p class="muted">还没有订阅链接。</p>';
+  </table></div>` : '<p class="muted">还没有 CalDAV token。</p>';
 
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -271,29 +285,29 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   <p class="sub">学号 <strong>${htmlEscape(user.account)}</strong></p>
   ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
   ${tokenBox}
-  <h2>订阅链接</h2>
+  <h2>CalDAV token</h2>
   <form method="post" action="/account/caldav-tokens" class="row">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <label for="label">备注</label>
     <input id="label" name="label" type="text" maxlength="64" placeholder="手机 / 电脑 / iPad">
-    <button class="primary" type="submit">生成订阅 token / 链接</button>
+    <button class="primary" type="submit">生成 CalDAV token</button>
   </form>
   ${tokenTable}
   <h2>怎么添加</h2>
-  <ol class="steps">
-    <li><strong>iPhone / iPad</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → <b>添加已订阅的日历</b>，粘贴 <b>.ics 订阅链接</b>。</li>
-    <li><strong>macOS</strong>：日历 → 文件 → <b>新建日历订阅</b>，粘贴 <b>.ics 订阅链接</b>。</li>
-    <li><strong>Android</strong>：
-      <ul>
-        <li><strong>OPPO 日历</strong>：日历 → 日程同步与导入 → <b>URL 日历</b>（粘贴 .ics）；或 <b>CalDAV 账号</b>（服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token）。</li>
-        <li><strong>Google 日历</strong>：手机 App 不能直接加 URL；用网页版 calendar.google.com → 其他日历 → <b>通过 URL 添加</b>，粘贴 .ics，手机 App 会自动同步。</li>
-        <li><strong>其他品牌</strong>：在日历设置里找“添加日历 / 订阅日历 / 通过 URL 添加”，粘贴 .ics。</li>
-        <li><strong>没有 URL 订阅入口</strong>：用 DAVx5 添加 CalDAV 账户，服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token。</li>
-      </ul>
-    </li>
-    <li><strong>电脑客户端</strong>：Thunderbird 添加 CalDAV 账户（服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token）；Outlook 可用“添加日历 → 从 Web 订阅”粘贴 .ics。</li>
-  </ol>
-  <p class="muted">只读订阅用 <b>.ics 链接</b>；需要填账号密码的客户端用 <b>CalDAV 账户</b>。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
+  <p class="muted">能加 CalDAV 账户的客户端优先用 CalDAV；不支持 CalDAV 的再用 .ics 订阅。两种方式都只读。</p>
+  <div class="table-wrap"><table class="tokens how">
+    <thead><tr><th>客户端</th><th>CalDAV 账户（推荐）</th><th>.ics 订阅</th></tr></thead>
+    <tbody>
+      <tr><td>iPhone / iPad</td><td>设置 → 日历 → 账户 → 添加账户 → 其他 → 添加 CalDAV 账户</td><td>添加账户 → 其他 → 添加已订阅的日历，粘贴链接</td></tr>
+      <tr><td>macOS</td><td>日历 → 添加账户 → 其他 → CalDAV</td><td>日历 → 文件 → 新建日历订阅</td></tr>
+      <tr><td>OPPO 日历</td><td>日程同步与导入 → CalDAV 账号</td><td>日程同步与导入 → URL 日历，粘贴链接</td></tr>
+      <tr><td>Google 日历</td><td>不支持</td><td>网页版 calendar.google.com → 其他日历 → 通过 URL 添加</td></tr>
+      <tr><td>其他 Android</td><td>用 DAVx5 添加 CalDAV 账户</td><td>设置里找“添加日历 / 通过 URL 添加”</td></tr>
+      <tr><td>Thunderbird</td><td>新建日历 → 网络上 → CalDAV</td><td>—</td></tr>
+      <tr><td>Outlook</td><td>不支持</td><td>添加日历 → 从 Web 订阅，粘贴链接</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
 <script>
   function copyText(id, btn) {
