@@ -168,7 +168,7 @@ add('GET', '/openapi.json', async ({ res }) => {
   res.end(JSON.stringify(openapi));
 });
 
-add('GET', '/docs', async ({ res }) => sendHtml(res, 200, renderDocsPage()), { skipOpenApi: true });
+add('GET', '/docs', async ({ res }) => sendHtml(res, 200, renderDocsPage(config.docsClientId)), { skipOpenApi: true });
 add('GET', '/docs/oauth2-redirect.html', async ({ res }) => sendHtml(res, 200, oauth2RedirectHtml), { skipOpenApi: true });
 add('GET', '/docs/oauth2-redirect.js', async ({ res }) => {
   res.writeHead(200, { ...baseHeaders(), 'Content-Type': 'text/javascript; charset=utf-8' });

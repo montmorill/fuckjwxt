@@ -2,7 +2,8 @@
 // 前端资源固定走 cdnjs；回调页逻辑来自 swagger-ui-dist 5.35.1。
 export const SWAGGER_UI_VERSION = '5.35.1';
 
-export function renderDocsPage() {
+export function renderDocsPage(clientId = '') {
+  const idJson = JSON.stringify(String(clientId || ''));
   return `<!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -22,6 +23,9 @@ export function renderDocsPage() {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/${SWAGGER_UI_VERSION}/swagger-ui-bundle.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/${SWAGGER_UI_VERSION}/swagger-ui-standalone-preset.js" crossorigin></script>
 <script>
+  const docsClientId = ${idJson};
+  const authConfig = { usePkceWithAuthorizationCodeGrant: true };
+  if (docsClientId) authConfig.clientId = docsClientId;
   window.ui = SwaggerUIBundle({
     url: '/openapi.json',
     dom_id: '#swagger-ui',
@@ -30,17 +34,17 @@ export function renderDocsPage() {
     defaultModelsExpandDepth: 1,
     oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect.html',
     usePkceWithAuthorizationCodeGrant: true,
+    persistAuthorization: true,
     presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
     plugins: [SwaggerUIBundle.plugins.DownloadUrl],
     layout: 'StandaloneLayout',
   });
-  // Swagger UI 初始化时会重置 auth configs；在 spec 加载后持续确保 PKCE 生效，
-  // 否则授权码请求不会带 code_challenge。
+  // Swagger UI 初始化时会重置 auth configs；在 spec 加载后持续确保 PKCE（和预填的 client_id）生效。
   const ensurePkce = () => {
     try {
       const cfg = window.ui.getSystem().authSelectors.getConfigs();
       if (!cfg || !cfg.usePkceWithAuthorizationCodeGrant) {
-        window.ui.initOAuth({ usePkceWithAuthorizationCodeGrant: true });
+        window.ui.initOAuth(authConfig);
       }
     } catch { /* UI 尚未就绪 */ }
   };

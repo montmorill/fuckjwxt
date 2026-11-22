@@ -46,6 +46,7 @@ export const config = {
   masterKey,
   adminToken,
   corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
+  docsClientId: process.env.DOCS_CLIENT_ID || '',
   accessTtl: Number(process.env.ACCESS_TOKEN_TTL || 3600),          // 秒
   refreshTtl: Number(process.env.REFRESH_TOKEN_TTL || 2592000),     // 秒，30 天
   codeTtl: Number(process.env.AUTH_CODE_TTL || 60),                 // 秒
