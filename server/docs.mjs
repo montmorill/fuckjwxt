@@ -34,6 +34,18 @@ export function renderDocsPage() {
     plugins: [SwaggerUIBundle.plugins.DownloadUrl],
     layout: 'StandaloneLayout',
   });
+  // Swagger UI 初始化时会重置 auth configs；在 spec 加载后持续确保 PKCE 生效，
+  // 否则授权码请求不会带 code_challenge。
+  const ensurePkce = () => {
+    try {
+      const cfg = window.ui.getSystem().authSelectors.getConfigs();
+      if (!cfg || !cfg.usePkceWithAuthorizationCodeGrant) {
+        window.ui.initOAuth({ usePkceWithAuthorizationCodeGrant: true });
+      }
+    } catch { /* UI 尚未就绪 */ }
+  };
+  ensurePkce();
+  setInterval(ensurePkce, 500);
 </script>
 </body></html>`;
 }

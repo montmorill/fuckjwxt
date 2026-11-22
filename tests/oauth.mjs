@@ -288,7 +288,8 @@ try {
     && typeof docsPage.body === 'string'
     && docsPage.body.includes('SwaggerUIBundle')
     && docsPage.body.includes('/openapi.json')
-    && docsPage.body.includes('usePkceWithAuthorizationCodeGrant'));
+    && docsPage.body.includes('usePkceWithAuthorizationCodeGrant')
+    && docsPage.body.includes('initOAuth'));
 
   const redirectPage = await get('/docs/oauth2-redirect.html');
   const redirectJs = await get('/docs/oauth2-redirect.js');
