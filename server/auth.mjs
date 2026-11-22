@@ -222,16 +222,11 @@ const accountStyle = `
   .cred-title{font-size:13px;font-weight:600;margin:14px 0 4px;color:#065f46}
   .token-field .token-url{flex:1;margin:0}
   .token-field button.slim{flex:0 0 auto;margin:0;padding:8px 10px;font-size:13px}
-  table.how td{font-size:13px;line-height:1.55}
   .table-wrap{overflow-x:auto}
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
   table.tokens th{color:#6b7280;font-weight:500;white-space:nowrap}
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
-  .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
-  .steps li{margin:4px 0}
-  .steps ul{margin:6px 0 0;padding-left:18px}
-  .steps ul li{margin:3px 0}
   @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}}
 `;
 
@@ -292,7 +287,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <button class="primary" type="submit">生成 CalDAV token</button>
   </form>
   ${tokenTable}
-  <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
+  <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号；密码可以填 token，也可以直接填<b>教务系统密码</b>。token / 链接只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
 <script>
   function copyText(id, btn) {
