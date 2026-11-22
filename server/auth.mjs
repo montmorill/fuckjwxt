@@ -208,7 +208,7 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
 }
 
 const accountStyle = `
-  .card.wide{max-width:860px}
+  .card.wide{max-width:860px;min-width:0}
   .account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
   .account-head h1{margin:0 0 6px}
   .account-head .sub{margin:0}
@@ -219,13 +219,13 @@ const accountStyle = `
   .row label{flex:0 0 auto;margin:0;white-space:nowrap;line-height:1.2}
   .row input[type=text]{flex:1;height:42px}
   .row button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;margin:0;padding:0 16px;height:42px}
-  .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:0 0 16px;font-size:14px}
+  .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:0 0 16px;font-size:14px;max-width:100%;min-width:0;overflow-x:auto}
   .token-box p{margin:6px 0}
   .token-url{display:block;word-break:break-all;line-height:1.6;margin:8px 0;background:#fff}
-  .token-field{display:flex;gap:8px;align-items:flex-start;margin:10px 0}
+  .token-field{display:flex;gap:8px;align-items:flex-start;margin:10px 0;min-width:0}
   .token-label{flex:0 0 110px;font-size:12px;color:#6b7280;padding-top:8px}
   .cred-title{font-size:13px;font-weight:600;margin:14px 0 4px;color:#065f46}
-  .token-field .token-url{flex:1;margin:0}
+  .token-field .token-url{flex:1;margin:0;min-width:0}
   .token-field button.slim{flex:0 0 auto;margin:0;padding:8px 10px;font-size:13px}
   .table-wrap{overflow-x:auto}
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
@@ -236,7 +236,16 @@ const accountStyle = `
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
   .note-center{text-align:center}
   .note-last{line-height:1.8}
-  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}.account-head{flex-direction:column;align-items:flex-start}}
+  @media(max-width:560px){
+    .card{padding:22px}
+    .row{flex-direction:column;align-items:stretch}
+    .row button{width:100%}
+    .token-field{flex-direction:column;align-items:stretch}
+    .token-field .token-url{flex:none;width:100%;max-width:100%}
+    .token-field button.slim{align-self:flex-start}
+    .token-label{flex:none;padding-top:0}
+    .account-head{flex-direction:column;align-items:flex-start}
+  }
 `;
 
 export function renderAccountPage({ user, csrf, tokens, newToken = null, error = '' }) {
