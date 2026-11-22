@@ -28,7 +28,7 @@ async function loginUser(user) {
   });
 }
 
-export async function getSession(user) {
+async function getSession(user) {
   const hit = sessions.get(user.id);
   if (hit && hit.expiresAt > Date.now()) {
     if (Date.now() - hit.verifiedAt < VERIFY_MS) return hit.session;
@@ -56,7 +56,7 @@ export async function getSession(user) {
 }
 
 // 数据接口失败时丢弃会话，自动重新登录并重试一次
-export async function withSession(user, fn) {
+async function withSession(user, fn) {
   let last;
   for (let attempt = 0; attempt < 2; attempt++) {
     const session = await getSession(user);

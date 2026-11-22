@@ -63,12 +63,6 @@ function sendJson(res, status, body, extra = {}) {
   res.end(JSON.stringify(body));
 }
 
-function sendText(res, status, body, extra = {}) {
-  const headers = { ...baseHeaders(), 'Content-Type': 'text/plain; charset=utf-8', ...extra };
-  res.writeHead(status, headers);
-  res.end(body);
-}
-
 function sendHtml(res, status, html) {
   res.writeHead(status, { ...baseHeaders(), 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);

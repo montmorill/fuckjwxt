@@ -100,7 +100,7 @@ export function clearCache(userId) {
 }
 
 // ---------- 认证 ----------
-export async function authenticate(req) {
+async function authenticate(req) {
   const header = req.headers.authorization || '';
 
   if (/^Basic /i.test(header)) {

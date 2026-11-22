@@ -232,7 +232,7 @@ export function createCalDavToken({ userId, label, tokenHash }) {
   return getCalDavTokenById(Number(r.lastInsertRowid));
 }
 
-export const getCalDavTokenById = id =>
+const getCalDavTokenById = id =>
   db.prepare('SELECT * FROM caldav_tokens WHERE id = ?').get(id);
 
 export const getCalDavTokenByHash = hash =>

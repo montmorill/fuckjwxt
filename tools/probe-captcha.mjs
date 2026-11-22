@@ -48,8 +48,7 @@ const p = await req(jar, BASE + '/');
 for (const m of p.body.matchAll(/[^\n]*(verifycode|SafeCodeImg|randcode|验证码)[^\n]*/gi)) console.log(m[0].trim().slice(0, 200));
 
 console.log('\n--- logonLdap: what fields? try with randcode ---');
-const s2 = await req(jar, BASE + '/Logon.do?method=logon&flag=sess', { method: 'POST' });
-const [sc, sx] = s2.body.split('#');
+await req(jar, BASE + '/Logon.do?method=logon&flag=sess', { method: 'POST' });
 for (const extra of [{}, { randcode: '1234' }, { verifycode: '1234' }, { captcha: '1234' }]) {
   const form = new URLSearchParams({ loginMethod: 'logonLdap', userlanguage: '0', userAccount: '202000000000', userPassword: 'wrongpass', ...extra });
   const r = await req(jar, BASE + '/Logon.do?method=logonLdap', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
