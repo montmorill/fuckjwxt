@@ -38,8 +38,8 @@ npm start
 ```
 
 - 服务端不再从 `.env` 导入用户；所有用户通过 CLI 或 `POST /admin/users` 创建。
-- 登录名就是学号；只使用 CalDAV 时可以不设服务密码。
-- 打开 `http://localhost:8787/login`，用学号 + 服务密码登录。
+- 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
+- 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
 
@@ -57,6 +57,6 @@ npm run openapi:check  # 手动校验 openapi.json 是否最新
 ## 安全
 
 - `.env`、`data/`（SQLite，含加密凭据和令牌哈希）、`docs/site/`（含个人信息）都已 gitignore。
-- 教务密码用 AES-256-GCM 加密落库，主密钥只在环境变量；服务登录密码用 scrypt；OAuth/CalDAV token 只存 SHA-256。
+- 教务密码用 AES-256-GCM 加密落库，主密钥只在环境变量；服务登录密码用 scrypt（未设置时回退到教务密码）；OAuth/CalDAV token 只存 SHA-256。
 - 生产环境请用 HTTPS 反向代理，并把 `ISSUER` 改为外部地址。
 - 这是研究/个人项目，自动化访问请遵守学校规定。

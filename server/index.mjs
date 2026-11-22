@@ -7,14 +7,14 @@ import {
   createClient, listClients, deleteClient,
   createCalDavToken, listCalDavTokens, revokeCalDavToken, deleteUserSessions, cleanup,
 } from './db.mjs';
-import { encrypt, hashToken, hashPassword, verifyPassword, randomToken, safeEqual } from './crypto.mjs';
+import { encrypt, hashToken, hashPassword, randomToken, safeEqual } from './crypto.mjs';
 import * as oauth from './oauth.mjs';
 import { handlers as apiHandlers, ApiError } from './api.mjs';
 import { verifyCredentials, clearSession, clearAllSessions } from './jwxt-service.mjs';
 import { handleCalDav, clearCache as clearCalDavCache } from './caldav.mjs';
 import {
   getSessionFromRequest, getSessionUser, createAnonymousSession, rotateSession, destroySession,
-  sidFromRequest, safeNext, renderLoginPage, renderConsentPage,
+  sidFromRequest, safeNext, renderLoginPage, renderConsentPage, verifyUserPassword,
   loginAllowed, recordLoginFailure, clearLoginFailures,
 } from './auth.mjs';
 
@@ -237,7 +237,7 @@ add('POST', '/login', async ({ req, res }) => {
   }
 
   const user = getUserByAccount(account);
-  if (!user || user.disabled || !verifyPassword(String(form.password || ''), user.service_password_hash)) {
+  if (!user || user.disabled || !verifyUserPassword(user, form.password)) {
     recordLoginFailure(ip, account);
     return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, account, error: '学号或密码错误' }));
   }

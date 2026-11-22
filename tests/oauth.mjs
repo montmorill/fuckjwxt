@@ -122,6 +122,7 @@ async function propfind(path, account, password, depth = 0) {
 
 const createdClients = [];
 let bobId = null;
+let carolId = null;
 let bobTokenId = null;
 let primaryTokenId = null;
 
@@ -304,6 +305,18 @@ try {
   const bobLogin = await serviceLogin(bobJar, bob.body.account, 'bob-pass');
   ok('bob service login', bobLogin.status === 302);
 
+  // 未设置服务密码时，登录应回退到教务密码
+  const carol = await postJson('/admin/users', {
+    account: '202600000098',
+    password: 'jwxt-fallback-pass',
+    verify: false,
+  }, admin);
+  ok('create user without service password', carol.status === 200 && Boolean(carol.body.id));
+  carolId = carol.body.id;
+  const carolJar = makeJar();
+  const carolLogin = await serviceLogin(carolJar, carol.body.account, 'jwxt-fallback-pass');
+  ok('login falls back to jwxt password', carolLogin.status === 302);
+
   const bobVerifier = randomBytes(32).toString('base64url');
   const bobChallenge = createHash('sha256').update(bobVerifier).digest('base64url');
   const bobQs = new URLSearchParams({
@@ -374,6 +387,7 @@ try {
     if (p) await del(`/admin/users/${p.id}/caldav-tokens/${primaryTokenId}`, admin).catch(() => {});
   }
   if (bobId) await del(`/admin/users/${bobId}`, admin).catch(() => {});
+  if (carolId) await del(`/admin/users/${carolId}`, admin).catch(() => {});
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

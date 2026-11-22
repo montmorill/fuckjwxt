@@ -2,7 +2,7 @@
 // 与教务账号一致：登录名是学号（users.account），密码是 service_password_hash（scrypt）。
 import { config } from './config.mjs';
 import * as db from './db.mjs';
-import { randomToken, hashToken, safeEqual, now } from './crypto.mjs';
+import { randomToken, hashToken, safeEqual, now, verifyPassword, decrypt } from './crypto.mjs';
 
 export const SID_COOKIE = 'jwo_sid';
 
@@ -145,24 +145,34 @@ const pageStyle = `
   .muted{color:#6b7280;font-size:12px;margin-top:18px}
 `;
 
+// 登录密码：优先校验服务密码；用户未设置服务密码时回退到教务密码。
+export function verifyUserPassword(user, password) {
+  const pwd = String(password || '');
+  if (verifyPassword(pwd, user.service_password_hash)) return true;
+  if (!user.service_password_hash && user.password_enc) {
+    try { return safeEqual(decrypt(user.password_enc), pwd); } catch { return false; }
+  }
+  return false;
+}
+
 export function renderLoginPage({ csrf, next, error = '', account = '' }) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>登录 · jwxt-oauth</title><style>${pageStyle}</style></head><body>
 <div class="card">
   <h1>登录 jwxt-oauth</h1>
-  <p class="sub">使用服务账号登录，不是教务系统密码。</p>
+  <p class="sub">使用学号登录；未设置服务密码时使用教务系统密码。</p>
   ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
   <form method="post" action="/login" autocomplete="on">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <input type="hidden" name="next" value="${htmlEscape(next)}">
     <label for="account">学号</label>
     <input id="account" name="account" type="text" value="${htmlEscape(account)}" autocomplete="username" required>
-    <label for="password">服务密码</label>
+    <label for="password">密码</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <div class="actions"><button class="primary" type="submit">登录</button></div>
   </form>
-  <p class="muted">管理员可通过 <code>PUT /admin/users/{id}</code> 设置服务密码。</p>
+  <p class="muted">未设置服务密码时可直接使用教务密码；管理员可通过 <code>PUT /admin/users/{id}</code> 设置服务密码。</p>
 </div></body></html>`;
 }
 
