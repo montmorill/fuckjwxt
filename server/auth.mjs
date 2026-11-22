@@ -283,13 +283,15 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   <ol class="steps">
     <li><strong>iPhone / iPad</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → <b>添加已订阅的日历</b>，粘贴 <b>.ics 订阅链接</b>。</li>
     <li><strong>macOS</strong>：日历 → 文件 → <b>新建日历订阅</b>，粘贴 <b>.ics 订阅链接</b>。</li>
-    <li><strong>OPPO 日历</strong>：
+    <li><strong>Android</strong>：
       <ul>
-        <li>只读订阅：日历 → 日程同步与导入 → <b>URL 日历</b>，粘贴 <b>.ics 订阅链接</b>。</li>
-        <li>CalDAV 账户：日历 → 日程同步与导入 → <b>CalDAV 账号</b>，服务器填 <code>${config.issuer}/caldav/</code>，用户名填学号，密码填 <b>token</b>。</li>
+        <li><strong>OPPO 日历</strong>：日历 → 日程同步与导入 → <b>URL 日历</b>（粘贴 .ics）；或 <b>CalDAV 账号</b>（服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token）。</li>
+        <li><strong>Google 日历</strong>：手机 App 不能直接加 URL；用网页版 calendar.google.com → 其他日历 → <b>通过 URL 添加</b>，粘贴 .ics，手机 App 会自动同步。</li>
+        <li><strong>其他品牌</strong>：在日历设置里找“添加日历 / 订阅日历 / 通过 URL 添加”，粘贴 .ics。</li>
+        <li><strong>没有 URL 订阅入口</strong>：用 DAVx5 添加 CalDAV 账户，服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token。</li>
       </ul>
     </li>
-    <li><strong>其他客户端</strong>（Thunderbird、DAVx5 等）：添加 CalDAV 账户，服务器 <code>${config.issuer}/caldav/</code>，用户名填学号，密码填 <b>token</b>。</li>
+    <li><strong>电脑客户端</strong>：Thunderbird 添加 CalDAV 账户（服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token）；Outlook 可用“添加日历 → 从 Web 订阅”粘贴 .ics。</li>
   </ol>
   <p class="muted">只读订阅用 <b>.ics 链接</b>；需要填账号密码的客户端用 <b>CalDAV 账户</b>。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
