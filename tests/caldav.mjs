@@ -113,6 +113,29 @@ try {
   ok('课程日历带颜色', courseCal.status === 207 && courseCal.text.includes('<C:calendar/>')
     && /<A:calendar-color>#[0-9A-F]{6}<\/A:calendar-color>/.test(courseCal.text));
 
+  const originalColor = courseCal.text.match(/<A:calendar-color>([^<]+)<\/A:calendar-color>/)?.[1] || '';
+  if (courseHref && originalColor) {
+    const patched = await req(courseHref, {
+      method: 'PROPPATCH',
+      headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+      body: '<?xml version="1.0" encoding="utf-8"?><D:propertyupdate xmlns:D="DAV:" xmlns:A="http://apple.com/ns/ical/"><D:set><D:prop><A:calendar-color>#123456</A:calendar-color></D:prop></D:set></D:propertyupdate>',
+    });
+    ok('PROPPATCH 修改课程颜色', patched.status === 207 && patched.text.includes('HTTP/1.1 200 OK'));
+
+    const courseCal2 = await propfind(courseHref, 0, '<A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>', { 'User-Agent': 'OPPO-Calendar' });
+    ok('课程颜色已更新', courseCal2.status === 207 && courseCal2.text.includes('<A:calendar-color>#123456</A:calendar-color>'));
+
+    const removed = await req(courseHref, {
+      method: 'PROPPATCH',
+      headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+      body: '<?xml version="1.0" encoding="utf-8"?><D:propertyupdate xmlns:D="DAV:" xmlns:A="http://apple.com/ns/ical/"><D:remove><D:prop><A:calendar-color/></D:prop></D:remove></D:propertyupdate>',
+    });
+    ok('PROPPATCH 移除颜色覆盖', removed.status === 207);
+
+    const courseCal3 = await propfind(courseHref, 0, '<A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>', { 'User-Agent': 'OPPO-Calendar' });
+    ok('课程颜色恢复', courseCal3.status === 207 && courseCal3.text.includes(`<A:calendar-color>${originalColor}</A:calendar-color>`));
+  }
+
   const calHref = homeHref.replace(/\/?$/, '/') + 'timetable/';
   const cal = await propfind(calHref, 0, '<D:resourcetype/><D:displayname/>');
   ok('PROPFIND 日历集合是 calendar', cal.status === 207 && cal.text.includes('<C:calendar/>') && cal.text.includes('课表'));

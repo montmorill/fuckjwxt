@@ -1,4 +1,4 @@
-# CalDAV（只读课表，多用户）
+# CalDAV（课表只读，颜色可写回）
 
 把每个用户的当前学期课表转成 VEVENT。手机/桌面日历可以添加 CalDAV 账户，或用 `.ics` 订阅。
 
@@ -76,6 +76,39 @@ URL 里的 token 就是凭据，不要发到公开渠道；泄露后用 `del-cal
 
 原来的 `http://<host>:8787/caldav/calendars/<学号>/timetable.ics`（Basic 认证）仍然可用。
 
+## 修改课程颜色
+
+OPPO 模式下每门课是一个独立日历，颜色是日历集合的 `calendar-color`，可以直接发标准 `PROPPATCH`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:A="http://apple.com/ns/ical/">
+  <D:set>
+    <D:prop><A:calendar-color>#BE675E</A:calendar-color></D:prop>
+  </D:set>
+</D:propertyupdate>
+```
+
+```bash
+curl -u <学号>:<CalDAV token> -X PROPPATCH \
+  -H 'Content-Type: application/xml; charset=utf-8' \
+  --data-binary @color.xml \
+  'http://<host>:8787/caldav/calendars/<学号>/course-<slug>/'
+```
+
+- `<slug>` 用 OPPO 首页 PROPFIND（`Depth: 1` + `User-Agent: OPPO-Calendar`）里列出的 `course-.../`。
+- 支持 `#RRGGBB` 和 `#RRGGBBAA`；用 `<D:remove>` 删除覆盖后恢复色板颜色。
+- 修改后服务会清掉该用户的 CalDAV 缓存，下一次 PROPFIND/REPORT 立即生效。
+- 不想走 CalDAV 时，也可以直接改库：
+
+  ```bash
+  node scripts/admin.mjs set-caldav-color <学号> "<课程名>" '#BE675E'
+  ```
+
+  运行中的服务最多 5 分钟后生效（或重启服务）。
+
+普通模式只有一个 `timetable` 合集，`PROPPATCH` 修改的是整个合集的颜色；单门课的 per-event 颜色暂不支持写回。
+
 ## 数据与时间
 
 - OPPO 首页按课程拆成多个日历，每个日历带自己的 `calendar-color`，事件写 `CATEGORIES:课表,班级,教师`；其他客户端使用 `timetable` 合集，事件写 `COLOR` 和 `CATEGORIES:课表,班级,科目,教师`（多个班级/教师会拆成多个分类）。
@@ -120,13 +153,14 @@ URL 里的 token 就是凭据，不要发到公开渠道；泄露后用 `del-cal
 | `PROPFIND` | 根/principal/home/calendar/event，Depth 0/1/infinity |
 | `REPORT` | `calendar-query`（返回全部事件）、`calendar-multiget` |
 | `GET` / `HEAD` | 日历集合、单个事件、`.ics` 订阅 |
-| `PUT` / `DELETE` / `MKCALENDAR` | 405（只读） |
+| `PROPPATCH` | 修改日历的 `calendar-color`（`set` / `remove`） |
+| `PUT` / `DELETE` / `MKCALENDAR` | 405（事件仍只读） |
 
 ETag 基于生成内容；`If-None-Match` 支持 304。
 
 ## 限制
 
-- 只读，不支持客户端写回。
+- 事件只读：不支持 `PUT` / `DELETE`；只有 `PROPPATCH calendar-color` 可写回。
 - 一次只暴露一个学期（用户固定的 `caldavSemester`，否则当前学期）。
 - `calendar-query` 的时间范围过滤未实现：按时间范围查询也会拿到整学期事件。
 - 不支持 `sync-collection`；客户端会回退到 `calendar-query`。
@@ -143,4 +177,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含标准/OPPO 首页与课程颜色）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、订阅 URL、错误密码 401。
+覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含标准/OPPO 首页与课程颜色）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、订阅 URL、PROPPATCH 修改/恢复颜色、错误密码 401。

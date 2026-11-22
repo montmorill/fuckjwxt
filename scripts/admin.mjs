@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 本地管理脚本：生成密钥、管理用户/CalDAV token、注册 OAuth 客户端。
 // 运行 `node scripts/admin.mjs` 查看完整用法。
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 const [cmd, ...rest] = process.argv.slice(2);
 
@@ -182,6 +182,26 @@ switch (cmd) {
     console.log(db.revokeCalDavToken(tokenId, userId) ? '已撤销' : '未找到');
     break;
   }
+  case 'set-caldav-color': {
+    const userArg = String(args._[0] || '');
+    const courseArg = String(args._[1] || '');
+    const color = String(args._[2] || '').toUpperCase();
+    if (!userArg || !courseArg || !color) {
+      throw new Error('用法: set-caldav-color <user_id|学号> <课程名|course-<slug>|timetable> <#RRGGBB>');
+    }
+    if (!/^#[0-9A-F]{6}(?:[0-9A-F]{2})?$/.test(color)) throw new Error('颜色格式应为 #RRGGBB 或 #RRGGBBAA');
+    const user = db.getUserByAccount(userArg)
+      || (/^\d+$/.test(userArg) ? db.getUserById(Number(userArg)) : null);
+    if (!user) throw new Error('用户不存在');
+    let key;
+    if (courseArg.toLowerCase() === 'timetable') key = 'timetable';
+    else if (/^course-[0-9a-f]{12}$/i.test(courseArg)) key = courseArg.toLowerCase();
+    else key = 'course-' + createHash('sha1').update(courseArg).digest('hex').slice(0, 12);
+    db.setCalDavColor(user.id, key, color);
+    console.log(JSON.stringify({ user_id: user.id, account: user.account, calendar: key, color }, null, 2));
+    console.log('\n运行中的服务会在 CalDAV 缓存过期后生效（默认 5 分钟），或重启服务。');
+    break;
+  }
   case 'add-client': {
     const name = String(args.name || '').trim();
     if (!name) throw new Error('需要 --name');
@@ -247,6 +267,7 @@ switch (cmd) {
   node scripts/admin.mjs add-caldav-token <user_id> [--label <标签>]
   node scripts/admin.mjs list-caldav-tokens <user_id>
   node scripts/admin.mjs del-caldav-token <user_id> <token_id>
+  node scripts/admin.mjs set-caldav-color <user_id|学号> <课程名|course-<slug>|timetable> <#RRGGBB>
   node scripts/admin.mjs add-client --name <名称> --redirect <uri> [--redirect <uri2>] [--scopes jwxt.read,offline_access] [--public] [--user <id|account>]
   node scripts/admin.mjs list-clients
   node scripts/admin.mjs del-client <client_id>`);

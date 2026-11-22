@@ -51,6 +51,8 @@ function pathsFor(user) {
 
 const pad = n => String(n).padStart(2, '0');
 const sha1 = s => createHash('sha1').update(String(s)).digest('hex');
+const courseSlug = name => sha1(String(name)).slice(0, 12);
+const courseColorKey = name => `course-${courseSlug(name)}`;
 const sha256 = s => createHash('sha256').update(String(s)).digest('hex');
 
 // OPPO 日历不展开 RDATE，给它每个上课日生成独立 VEVENT。
@@ -310,7 +312,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   };
 }
 
-function buildEvents(items, start, semester, calendarHref, expand) {
+function buildEvents(items, start, semester, calendarHref, expand, overrides = {}) {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -318,6 +320,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
   const courseNames = [...new Set(items.map(i => i.name).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'zh-CN'));
   const colors = new Map(courseNames.map((name, i) => [name, COURSE_COLORS[i % COURSE_COLORS.length]]));
+  const colorFor = name => overrides[courseColorKey(name)] || colors.get(name) || COURSE_COLORS[0];
 
   for (const item of items) {
     const weeks = parseWeeks(item.weeks);
@@ -337,7 +340,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact: true, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colorFor(item.name), description, compact: true, calendarHref, stamp }));
       }
       continue;
     }
@@ -351,28 +354,28 @@ function buildEvents(items, start, semester, calendarHref, expand) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, compact: false, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colorFor(item.name), description, compact: false, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   return events;
 }
 
-function buildCourses(events, homeHref) {
+function buildCourses(events, homeHref, overrides = {}) {
   const groups = new Map();
   for (const e of events) {
     if (!groups.has(e.summary)) groups.set(e.summary, []);
     groups.get(e.summary).push(e);
   }
   return [...groups.entries()].map(([name, list]) => {
-    const slug = sha1(name).slice(0, 12);
+    const slug = courseSlug(name);
     const prefix = `${homeHref}course-${slug}/`;
     const courseEvents = list.map(e => ({ ...e, href: `${prefix}${e.hash}.ics` }));
     const ics = vcalendar(courseEvents.map(e => e.eventLines), name);
     return {
       name,
       slug,
-      color: list[0].color || COURSE_COLORS[0],
+      color: overrides[`course-${slug}`] || list[0].color || COURSE_COLORS[0],
       events: courseEvents,
       ics,
       etag: `"${sha256(ics).slice(0, 32)}"`,
@@ -407,13 +410,17 @@ async function buildCalendar(user, expand) {
   }
   const paths = pathsFor(user);
   const { className, calendarName } = calendarLabel(user, items);
-  const events = buildEvents(items, start, semester, paths.calendar, expand);
-  const courses = buildCourses(events, paths.home);
+  const overrides = db.listCalDavColors(user.id);
+  const events = buildEvents(items, start, semester, paths.calendar, expand, overrides);
+  const courses = buildCourses(events, paths.home, overrides);
   const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
 
-  return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
+  return {
+    semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName,
+    overrides, timetableColor: overrides.timetable || '#FF9500FF',
+  };
 }
 
 async function calendarData(user, expand = false) {
@@ -444,7 +451,9 @@ function propXml(name, ctx) {
     case 'calendar-user-address-set':
       return `<C:calendar-user-address-set><D:href>mailto:${xmlEscape(ctx.account || '')}@jwxt.local</D:href></C:calendar-user-address-set>`;
     case 'current-user-privilege-set':
-      return '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>';
+      return ctx.kind === 'calendar'
+        ? '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:write-properties/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>'
+        : '<D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege></D:current-user-privilege-set>';
     case 'group-membership':
       return '<D:group-membership/>';
     case 'source':
@@ -641,7 +650,7 @@ async function handlePropfind(req, res, user, path, url) {
   const calEvents = course ? course.events : (cal?.events || []);
   const calEtag = course ? course.etag : cal?.etag;
   const calDisplayName = course ? course.name : calendarName;
-  const calColor = course ? course.color : '#FF9500FF';
+  const calColor = course ? course.color : (cal?.timetableColor || '#FF9500FF');
 
   const responses = [];
   const add = (href, ctx) => responses.push(responseXml(href, propsFor({ ...ctx, paths, account }, requested)));
@@ -678,7 +687,7 @@ async function handlePropfind(req, res, user, path, url) {
             description: calendarName,
             etag: cal?.etag,
             lastModified: cal?.lastModified,
-            color: '#FF9500FF',
+            color: cal?.timetableColor || '#FF9500FF',
           });
         }
       }
@@ -797,10 +806,35 @@ async function handleFeed(req, res, token) {
   return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
 }
 
+async function handleProppatch(req, res, user, path) {
+  if (path.kind !== 'calendar') return sendText(res, 403, '只支持修改日历颜色');
+  const body = await readBody(req);
+  if (DEBUG) console.log(`[caldav] PROPPATCH ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
+
+  const setMatch = body.match(/<(?:\w+:)?calendar-color\b[^>]*>\s*(#[0-9A-Fa-f]{6,8})\s*</i);
+  const removing = /<(?:\w+:)?remove\b/i.test(body) && /calendar-color/i.test(body);
+  if (!setMatch && !removing) return sendText(res, 400, '只支持 calendar-color');
+
+  const key = path.course ? `course-${path.course}` : 'timetable';
+  const color = setMatch ? setMatch[1].toUpperCase() : null;
+  if (color && !/^#[0-9A-F]{6}(?:[0-9A-F]{2})?$/.test(color)) {
+    return sendText(res, 400, '颜色格式应为 #RRGGBB 或 #RRGGBBAA');
+  }
+
+  if (color) db.setCalDavColor(user.id, key, color);
+  else db.deleteCalDavColor(user.id, key);
+  clearCache(user.id);
+
+  const paths = pathsFor(user);
+  const href = path.course ? `${paths.home}course-${path.course}/` : paths.calendar;
+  const colorXml = color ? `<A:calendar-color>${xmlEscape(color)}</A:calendar-color>` : '';
+  sendXml(res, `<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:" xmlns:A="http://apple.com/ns/ical/"><D:response><D:href>${xmlEscape(href)}</D:href><D:propstat><D:prop>${colorXml}</D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>`);
+}
+
 function handleOptions(res) {
   send(res, 200, '', {
     DAV: '1, 2, calendar-access',
-    Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT',
+    Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH',
     'MS-Author-Via': 'DAV',
   });
 }
@@ -845,9 +879,10 @@ export async function handleCalDav(req, res, url) {
   if (method === 'PROPFIND') return handlePropfind(req, res, auth.user, path, url);
   if (method === 'REPORT') return handleReport(req, res, auth.user, path);
   if (method === 'GET' || method === 'HEAD') return handleGet(req, res, auth.user, path);
+  if (method === 'PROPPATCH') return handleProppatch(req, res, auth.user, path);
 
-  if (['PUT', 'DELETE', 'MKCALENDAR', 'PROPPATCH', 'COPY', 'MOVE'].includes(method)) {
-    return sendText(res, 405, '只读 CalDAV', { Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT' });
+  if (['PUT', 'DELETE', 'MKCALENDAR', 'COPY', 'MOVE'].includes(method)) {
+    return sendText(res, 405, '只支持 PROPPATCH 修改日历颜色', { Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH' });
   }
-  return sendText(res, 405, '不支持的方法', { Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT' });
+  return sendText(res, 405, '不支持的方法', { Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH' });
 }

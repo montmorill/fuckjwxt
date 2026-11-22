@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS caldav_tokens (
   last_used_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_caldav_tokens_user ON caldav_tokens(user_id);
+
+CREATE TABLE IF NOT EXISTS caldav_colors (
+  user_id INTEGER NOT NULL,
+  calendar_key TEXT NOT NULL,
+  color TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, calendar_key)
+);
 `);
 
 // ---------- users ----------
@@ -139,6 +147,7 @@ export function deleteUser(id) {
     db.prepare('DELETE FROM clients WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM caldav_tokens WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM caldav_colors WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM auth_codes WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM access_tokens WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(id);
@@ -247,6 +256,25 @@ export const revokeCalDavToken = (id, userId) =>
 
 export const touchCalDavToken = id =>
   db.prepare('UPDATE caldav_tokens SET last_used_at = ? WHERE id = ?').run(now(), id);
+
+// ---------- caldav colors ----------
+export function listCalDavColors(userId) {
+  const out = {};
+  for (const row of db.prepare('SELECT calendar_key, color FROM caldav_colors WHERE user_id = ?').all(userId)) {
+    out[row.calendar_key] = row.color;
+  }
+  return out;
+}
+
+export const setCalDavColor = (userId, calendarKey, color) =>
+  db.prepare(`INSERT INTO caldav_colors (user_id, calendar_key, color, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, calendar_key) DO UPDATE SET color = excluded.color, updated_at = excluded.updated_at`)
+    .run(userId, calendarKey, color, now());
+
+export const deleteCalDavColor = (userId, calendarKey) =>
+  db.prepare('DELETE FROM caldav_colors WHERE user_id = ? AND calendar_key = ?')
+    .run(userId, calendarKey).changes > 0;
 
 // ---------- cleanup ----------
 export function cleanup() {

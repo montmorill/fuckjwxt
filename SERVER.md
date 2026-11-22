@@ -13,7 +13,7 @@
   - Revocation、Authorization Server Metadata
 - 访问令牌 1 小时、刷新令牌 30 天；令牌只存 SHA-256 哈希。
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
-- **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
+- **CalDAV（课表只读，颜色可写回）**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
 - 管理 API + 本地 CLI。
 - 客户端：`client/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
 - OpenAPI 3.0（`GET /openapi.json`，`GET /docs` 为 Swagger UI；`npm run openapi` 生成，`npm run openapi:check` 校验）。
@@ -257,7 +257,7 @@ server/
   jwxt-service.mjs  教务登录 + 会话缓存 + 数据封装
   oauth.mjs         OAuth2 逻辑
   api.mjs           受保护的数据接口
-  caldav.mjs        只读 CalDAV
+  caldav.mjs        CalDAV（课表只读，颜色可写回）
   openapi.mjs       OpenAPI 路由元数据
   jwxt/
     login.mjs       强智登录（Cookie 罐、sess 编码、重试）
@@ -275,5 +275,5 @@ tests/
 ## 已验证
 
 - OAuth 端到端 **43 项**：服务登录、未设服务密码时回退教务密码、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
-- CalDAV **20 项**：PROPFIND（含 `/.well-known/caldav`、根路径、标准首页与 OPPO 课程首页）/REPORT（calendar-query、multiget、sync-collection、OPPO 独立事件）/GET、ETag/304、订阅 URL、错误密码 401。
+- CalDAV **24 项**：PROPFIND（含 `/.well-known/caldav`、根路径、标准首页与 OPPO 课程首页）/REPORT（calendar-query、multiget、sync-collection、OPPO 独立事件）/GET、ETag/304、订阅 URL、PROPPATCH 颜色、错误密码 401。
 - 客户端 **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。
