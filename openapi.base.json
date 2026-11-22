@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "jwxt-oauth API",
+    "title": "强智 Gateway API",
     "version": "0.1.0",
-    "description": "把强智教务账号封装成 OAuth2 数据 API。单账号；授权页自动同意。\n\n默认地址是 http://localhost:8787，部署后请把 servers 和 securitySchemes 里的地址改成实际 ISSUER。"
+    "description": "把强智教务账号封装成多用户 OAuth2 数据 API。授权页需要登录并确认。\n\n默认地址是 http://localhost:8787，部署后请把 servers 和 securitySchemes 里的地址改成实际 ISSUER。"
   },
   "servers": [
     {

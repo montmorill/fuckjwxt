@@ -229,7 +229,7 @@ function vcalendar(eventLineArrays, name, { compact = false } = {}) {
     ? [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//jwxt-oauth//CN',
+      'PRODID:-//qzgw//CN',
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
       ...eventLineArrays.flat(),
@@ -238,7 +238,7 @@ function vcalendar(eventLineArrays, name, { compact = false } = {}) {
     : [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//jwxt-oauth//CN',
+      'PRODID:-//qzgw//CN',
       `X-WR-CALNAME:${(compact ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
@@ -270,7 +270,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   const eventLines = compact
     ? [
       'BEGIN:VEVENT',
-      `UID:${hash}@jwxt-oauth`,
+      `UID:${hash}@qzgw`,
       `DTSTAMP:${stamp}`,
       'SEQUENCE:3',
       `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
@@ -283,7 +283,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
     ]
     : [
       'BEGIN:VEVENT',
-      `UID:${hash}@jwxt-oauth`,
+      `UID:${hash}@qzgw`,
       `DTSTAMP:${stamp}`,
       `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
       `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
@@ -299,7 +299,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   const ics = vcalendar([eventLines], item.name, { compact });
   return {
     hash,
-    uid: `${hash}@jwxt-oauth`,
+    uid: `${hash}@qzgw`,
     summary: item.name,
     href: `${calendarHref}${hash}.ics`,
     etag: `"${sha256(ics).slice(0, 32)}"`,
@@ -832,7 +832,7 @@ export async function handleCalDav(req, res, url) {
     const [status, message] = auth.error;
     const challenge = auth.scheme === 'Bearer'
       ? 'Bearer error="invalid_token"'
-      : 'Basic realm="jwxt-oauth CalDAV", charset="UTF-8"';
+      : 'Basic realm="强智 Gateway CalDAV", charset="UTF-8"';
     res.setHeader('WWW-Authenticate', challenge);
     return sendText(res, status, message);
   }

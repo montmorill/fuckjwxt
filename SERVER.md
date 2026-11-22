@@ -1,4 +1,4 @@
-# jwxt-oauth
+# 强智 Gateway
 
 把强智教务账号封装成受 **OAuth 2.0** 保护的多用户数据 API。零 npm 依赖（Node 24 内置 `node:http` / `node:sqlite` / `node:crypto`）。
 
@@ -37,7 +37,7 @@ npm start
 - 服务端**不再从 `.env` 导入用户**；用户必须通过 CLI 或 `POST /admin/users` 创建。
 - 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
 - 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
-- 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
+- 数据库 schema 变更未做迁移；需要重建时删除 `data/qzgw.db`。
 
 ### 添加更多用户
 
@@ -233,7 +233,7 @@ CLI：`node scripts/admin.mjs` 查看全部命令。
 
 - 教务密码：AES-256-GCM；`MASTER_KEY` 只在环境变量。
 - 服务登录密码：scrypt + 随机 salt，存 `users.service_password_hash`；未设置时回退到解密后的教务密码做 timing-safe 比较。
-- 服务会话：`jwo_sid` HttpOnly + SameSite=Lax；HTTPS 下自动加 `Secure`；登录后轮换 session、CSRF 校验。
+- 服务会话：`qzgw_sid` HttpOnly + SameSite=Lax；HTTPS 下自动加 `Secure`；登录后轮换 session、CSRF 校验。
 - 客户端 secret：只存 SHA-256，创建时返回一次。
 - access/refresh token：只存 SHA-256；refresh 轮换 + 重放检测。
 - 授权码：60 秒、单次使用、绑定 client/redirect_uri/user、PKCE。

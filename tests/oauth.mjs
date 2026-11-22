@@ -154,7 +154,7 @@ try {
 
   const primaryJar = makeJar();
   const login = await serviceLogin(primaryJar, primary.account, 'test-pass');
-  ok('service login', login.page === 200 && login.status === 302 && primaryJar.has('jwo_sid'));
+  ok('service login', login.page === 200 && login.status === 302 && primaryJar.has('qzgw_sid'));
 
   const badLoginJar = makeJar();
   const badLogin = await serviceLogin(badLoginJar, primary.account, 'wrong-pass');

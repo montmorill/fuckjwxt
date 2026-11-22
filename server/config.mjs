@@ -31,7 +31,7 @@ if (adminToken.length < 24) {
 
 const port = Number(process.env.PORT || 8787);
 const issuer = (process.env.ISSUER || `http://localhost:${port}`).replace(/\/+$/, '');
-const dbPath = resolve(ROOT, process.env.DB_PATH || 'data/jwxt-oauth.db');
+const dbPath = resolve(ROOT, process.env.DB_PATH || 'data/qzgw.db');
 mkdirSync(dirname(dbPath), { recursive: true });
 
 // 多用户模式下每个用户可单独设置 baseUrl；这里只是未设置时的默认值。

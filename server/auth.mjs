@@ -4,7 +4,7 @@ import { config } from './config.mjs';
 import * as db from './db.mjs';
 import { randomToken, hashToken, safeEqual, now, verifyPassword, decrypt } from './crypto.mjs';
 
-export const SID_COOKIE = 'jwo_sid';
+export const SID_COOKIE = 'qzgw_sid';
 
 export const htmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -158,9 +158,9 @@ export function verifyUserPassword(user, password) {
 export function renderLoginPage({ csrf, next, error = '', account = '' }) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 · jwxt-oauth</title><style>${pageStyle}</style></head><body>
+<title>登录 · 强智 Gateway</title><style>${pageStyle}</style></head><body>
 <div class="card">
-  <h1>登录 jwxt-oauth</h1>
+  <h1>登录 强智 Gateway</h1>
   <p class="sub">使用学号登录；未设置服务密码时使用教务系统密码。</p>
   ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
   <form method="post" action="/login" autocomplete="on">

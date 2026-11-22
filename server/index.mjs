@@ -160,7 +160,8 @@ const validateScopes = scopes => {
 const openapi = buildOpenApi(config.issuer);
 
 add('GET', '/', async () => ({
-  name: 'jwxt-oauth',
+  name: 'qzgw',
+  product: '强智 Gateway',
   issuer: config.issuer,
   metadata: `${config.issuer}/.well-known/oauth-authorization-server`,
   openapi: `${config.issuer}/openapi.json`,
@@ -664,7 +665,7 @@ server.on('clientError', (err, socket) => {
 });
 
 server.listen(config.port, () => {
-  console.log(`jwxt-oauth listening on ${config.issuer}`);
+  console.log(`qzgw listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
   console.log(`scopes: ${SCOPES.join(', ')}`);
   console.log(`login: ${config.issuer}/login`);

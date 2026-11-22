@@ -12,7 +12,7 @@ export interface TokenStorage {
   delete?(key: string): void | Promise<void>;
 }
 
-export interface JwxtOAuthClientOptions {
+export interface QzgwClientOptions {
   baseUrl: string;
   clientId: string;
   clientSecret?: string | null;
@@ -145,21 +145,21 @@ export interface MessageResult {
   data: MessageItem[];
 }
 
-export declare class JwxtError extends Error {
+export declare class QzgwError extends Error {
   status: number;
   error: string;
   description: string;
   constructor(status: number, error: string, description?: string);
 }
 
-export declare class JwxtOAuthClient {
+export declare class QzgwClient {
   baseUrl: string;
   clientId: string;
   clientSecret: string | null;
   redirectUri: string | null;
   tokens: TokenSet | null;
 
-  constructor(options: JwxtOAuthClientOptions);
+  constructor(options: QzgwClientOptions);
 
   static createPkce(): Promise<PkcePair>;
 
@@ -205,4 +205,4 @@ export declare class JwxtOAuthClient {
   notices(): Promise<MessageResult>;
 }
 
-export default JwxtOAuthClient;
+export default QzgwClient;

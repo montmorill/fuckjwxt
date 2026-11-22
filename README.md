@@ -1,4 +1,4 @@
-# fuckjwxt
+# 强智 Gateway
 
 山东科技大学强智教务系统（`jwglxt.sdust.edu.cn`）的协议研究，以及把账号包装成 **多用户 OAuth 2.0 数据 API** 的服务端。
 
@@ -41,7 +41,7 @@ npm start
 - 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
 - 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
-- 数据库 schema 变更未做迁移；需要重建时删除 `data/jwxt-oauth.db`。
+- 数据库 schema 变更未做迁移；需要重建时删除 `data/qzgw.db`。
 
 详细用法见 [`SERVER.md`](SERVER.md) 和 [`CALDAV.md`](CALDAV.md)。
 

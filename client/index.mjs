@@ -1,9 +1,9 @@
-// jwxt-oauth 客户端（浏览器 / Node 18+，零依赖）。
+// 强智 Gateway 客户端（浏览器 / Node 18+，零依赖）。
 // 支持：client_credentials、authorization_code + PKCE、refresh、revoke、API 封装。
-export class JwxtError extends Error {
+export class QzgwError extends Error {
   constructor(status, error, description) {
     super(description || error);
-    this.name = 'JwxtError';
+    this.name = 'QzgwError';
     this.status = status;
     this.error = error;
     this.description = description || '';
@@ -22,7 +22,7 @@ function normalizeBase(baseUrl) {
   return String(baseUrl || '').replace(/\/+$/, '');
 }
 
-export class JwxtOAuthClient {
+export class QzgwClient {
   constructor({
     baseUrl,
     clientId,
@@ -88,7 +88,7 @@ export class JwxtOAuthClient {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new JwxtError(res.status, body.error || 'token_error', body.error_description || res.statusText);
+      throw new QzgwError(res.status, body.error || 'token_error', body.error_description || res.statusText);
     }
     this.tokens = {
       accessToken: body.access_token,
@@ -126,7 +126,7 @@ export class JwxtOAuthClient {
   }
 
   async refresh() {
-    if (!this.tokens?.refreshToken) throw new JwxtError(401, 'no_refresh_token', 'no refresh token');
+    if (!this.tokens?.refreshToken) throw new QzgwError(401, 'no_refresh_token', 'no refresh token');
     const form = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: this.clientId,
@@ -151,7 +151,7 @@ export class JwxtOAuthClient {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new JwxtError(res.status, body.error || 'revoke_error', body.error_description || res.statusText);
+      throw new QzgwError(res.status, body.error || 'revoke_error', body.error_description || res.statusText);
     }
     this.tokens = null;
     await this.save();
@@ -159,7 +159,7 @@ export class JwxtOAuthClient {
 
   async ensureAccessToken() {
     if (!this.tokens?.accessToken) {
-      throw new JwxtError(401, 'no_token', 'call clientCredentials() or exchangeCode() first');
+      throw new QzgwError(401, 'no_token', 'call clientCredentials() or exchangeCode() first');
     }
     if (this.tokens.refreshToken && this.tokens.expiresAt < Date.now() + 60_000) {
       await this.refresh();
@@ -205,7 +205,7 @@ export class JwxtOAuthClient {
       return this.api(path, { query, method, body, retry: false });
     }
     if (!res.ok) {
-      throw new JwxtError(res.status, json.error || 'api_error', json.error_description || res.statusText);
+      throw new QzgwError(res.status, json.error || 'api_error', json.error_description || res.statusText);
     }
     return json.data;
   }
@@ -223,4 +223,4 @@ export class JwxtOAuthClient {
   notices() { return this.api('/api/notices'); }
 }
 
-export default JwxtOAuthClient;
+export default QzgwClient;
