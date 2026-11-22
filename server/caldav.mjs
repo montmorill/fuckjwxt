@@ -408,6 +408,7 @@ function buildExamEvents(exams, semester, calendarHref, compact, stamp) {
       const type = String(exam.ks_mc || exam.ksmc || fallbackType).trim() || '考试';
       const title = course ? `${course} ${type}` : type;
       const location = String(exam.js_mc || exam.ksdd || exam.location || '').trim();
+      const proctor = String(exam.jkls || exam.jkjs || exam.jkry || exam.jk_mc || '').trim();
       const start = when.allDay
         ? ymd(when.day)
         : localStamp(when.day.y, when.day.m, when.day.d, when.sh, when.sm);
@@ -432,7 +433,7 @@ function buildExamEvents(exams, semester, calendarHref, compact, stamp) {
         ...dtLines,
         `SUMMARY:${esc(title)}`,
         location ? `LOCATION:${esc(location)}` : '',
-        `DESCRIPTION:${esc(`考试：${type}`)}`,
+        proctor ? `DESCRIPTION:${esc(`监考：${proctor}`)}` : '',
         compact ? '' : `COLOR:${EXAM_COLOR}`,
         `CATEGORIES:${categories}`,
         'END:VEVENT',

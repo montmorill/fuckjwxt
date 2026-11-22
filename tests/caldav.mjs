@@ -181,6 +181,7 @@ try {
     && feed.text.includes('CATEGORIES:课程表,')
     && feed.text.includes('CATEGORIES:考试,课程表,')
     && feed.text.includes('提前期末考试')
+    && feed.text.includes('DESCRIPTION:监考：李艳')
     && !feed.text.includes('STATUS:')
     && !feed.text.includes('TRANSP:')
     && /COLOR:#[0-9A-F]{6}/.test(feed.text)
