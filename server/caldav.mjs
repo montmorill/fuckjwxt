@@ -12,6 +12,9 @@ import { jwxt } from './jwxt-service.mjs';
 const CALENDAR_NAME = '课表';
 const CALENDAR_TIMEZONE = 'Asia/Shanghai';
 const DEBUG = process.env.CALDAV_DEBUG === '1';
+if (process.env.CALDAV_FIXTURE === '1') {
+  console.warn('[caldav] fixture mode: using tests/fixtures/timetable.json（不会读取真实课表）');
+}
 const CALENDAR_TIMEZONE_LINES = [
   'BEGIN:VTIMEZONE',
   'TZID:Asia/Shanghai',
