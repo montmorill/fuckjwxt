@@ -85,7 +85,7 @@ export function validateAuthorize(query) {
 
   const allowedUris = JSON.parse(client.redirect_uris);
   if (!allowedUris.includes(redirectUri)) {
-    throw new OAuthError(400, 'invalid_request', 'redirect_uri is not registered');
+    throw new OAuthError(400, 'invalid_request', `redirect_uri is not registered: ${String(redirectUri).slice(0, 300)}`);
   }
 
   const clientScopes = parseScopes(client.scopes);
