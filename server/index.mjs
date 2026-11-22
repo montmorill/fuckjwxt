@@ -658,7 +658,7 @@ server.on('clientError', (err, socket) => {
   if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
 
-server.listen(config.port, () => {
+server.listen(config.port, config.host, () => {
   console.log(`qzgw listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
   console.log(`scopes: ${SCOPES.join(', ')}`);

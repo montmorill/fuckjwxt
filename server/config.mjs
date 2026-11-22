@@ -30,6 +30,7 @@ if (adminToken.length < 24) {
 }
 
 const port = Number(process.env.PORT || 8787);
+const host = process.env.HOST || '127.0.0.1';
 const issuer = (process.env.ISSUER || `http://localhost:${port}`).replace(/\/+$/, '');
 const dbPath = resolve(ROOT, process.env.DB_PATH || 'data/qzgw.db');
 mkdirSync(dirname(dbPath), { recursive: true });
@@ -39,6 +40,7 @@ export const DEFAULT_JWXT_BASE_URL = 'https://jwglxt.sdust.edu.cn';
 
 export const config = {
   port,
+  host,
   issuer,
   dbPath,
   masterKey,
