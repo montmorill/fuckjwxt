@@ -16,7 +16,7 @@
 - **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
 - 管理 API + 本地 CLI。
 - 客户端：`client/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
-- OpenAPI 3.0（`GET /openapi.json`，`npm run openapi` 生成，`npm run openapi:check` 校验）。
+- OpenAPI 3.0（`GET /openapi.json`，`GET /docs` 为 Swagger UI；`npm run openapi` 生成，`npm run openapi:check` 校验）。
 
 ## 快速开始
 
@@ -171,7 +171,10 @@ GET /.well-known/oauth-authorization-server
 
 ```
 GET /openapi.json
+GET /docs
 ```
+
+- `/docs` 是 Swagger UI，直接从同源 `/openapi.json` 渲染；前端资源从 cdnjs 加载，离线环境只会看到加载失败提示。无需登录。
 
 - 路径元数据在 `server/openapi.mjs`，schema 基座在 `openapi.base.json`。
 - 生成：`npm run openapi`（`ISSUER=https://your.domain npm run openapi` 生成外部地址）。
@@ -270,6 +273,6 @@ tests/
 
 ## 已验证
 
-- OAuth 端到端 **39 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
+- OAuth 端到端 **40 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
 - CalDAV **20 项**：PROPFIND（含 `/.well-known/caldav`、根路径、标准首页与 OPPO 课程首页）/REPORT（calendar-query、multiget、sync-collection、OPPO 独立事件）/GET、ETag/304、订阅 URL、错误密码 401。
 - 客户端 **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

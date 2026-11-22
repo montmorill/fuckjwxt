@@ -282,6 +282,12 @@ try {
     && Boolean(spec.body.paths?.['/admin/users'])
     && Boolean(spec.body.components?.securitySchemes?.oauth2AuthCode));
 
+  const docsPage = await get('/docs');
+  ok('docs page', docsPage.status === 200
+    && typeof docsPage.body === 'string'
+    && docsPage.body.includes('SwaggerUIBundle')
+    && docsPage.body.includes('/openapi.json'));
+
   // ---------- 多用户 ----------
   const bob = await postJson('/admin/users', {
     account: '202600000099',

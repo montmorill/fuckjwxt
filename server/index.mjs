@@ -155,6 +155,41 @@ const validateScopes = scopes => {
   return out;
 };
 
+// Swagger UI：前端资源走 cdnjs，规范从同源 /openapi.json 读取。
+function renderDocsPage() {
+  return `<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API 文档 · jwxt-oauth</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.35.1/swagger-ui.css">
+<style>
+  html { box-sizing: border-box; overflow-y: scroll; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body { margin: 0; background: #fafafa; }
+  .docs-fallback { font-family: system-ui, sans-serif; padding: 2rem; color: #444; line-height: 1.6; }
+</style>
+</head><body>
+<div id="swagger-ui"><div class="docs-fallback">
+  正在加载 Swagger UI… 如果长时间为空白，请确认能访问 cdnjs.cloudflare.com，或直接打开 <a href="/openapi.json">/openapi.json</a>。
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.35.1/swagger-ui-bundle.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.35.1/swagger-ui-standalone-preset.js" crossorigin></script>
+<script>
+  window.ui = SwaggerUIBundle({
+    url: '/openapi.json',
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    docExpansion: 'list',
+    defaultModelsExpandDepth: 1,
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+    plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+    layout: 'StandaloneLayout',
+  });
+</script>
+</body></html>`;
+}
+
 // ---------- routes: meta ----------
 const openapi = buildOpenApi(config.issuer);
 
@@ -163,6 +198,7 @@ add('GET', '/', async () => ({
   issuer: config.issuer,
   metadata: `${config.issuer}/.well-known/oauth-authorization-server`,
   openapi: `${config.issuer}/openapi.json`,
+  docs: `${config.issuer}/docs`,
   api: ['/api/me', '/api/profile', '/api/semesters', '/api/timetable', '/api/grades', '/api/exams', '/api/textbooks'],
 }));
 
@@ -170,6 +206,8 @@ add('GET', '/openapi.json', async ({ res }) => {
   res.writeHead(200, { ...baseHeaders(), 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(openapi));
 });
+
+add('GET', '/docs', async ({ res }) => sendHtml(res, 200, renderDocsPage()), { skipOpenApi: true });
 
 add('GET', '/healthz', async () => ({ status: 'ok', time: new Date().toISOString() }));
 

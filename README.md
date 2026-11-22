@@ -8,6 +8,7 @@
 - [`docs/API.md`](docs/API.md) —— 登录后可用接口清单、参数、返回结构
 - [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
+- `/docs` —— 在线 API 文档（Swagger UI，从 `/openapi.json` 渲染；前端资源走 cdnjs）
 - [`CALDAV.md`](CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
 - [`client/README.md`](client/README.md) —— 客户端：PKCE、自动刷新、数据 API 封装
 
