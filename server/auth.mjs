@@ -284,9 +284,10 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <label for="label">备注</label>
     <input id="label" name="label" type="text" maxlength="64" placeholder="手机 / 电脑 / iPad">
-    <button class="primary" type="submit">生成 CalDAV token</button>
+    <button class="primary" type="submit">生成订阅</button>
   </form>
   ${tokenTable}
+  <p class="muted">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。</p>
   <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号；密码可以填 token，也可以直接填<b>教务系统密码</b>。token / 链接只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
 <script>
