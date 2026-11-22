@@ -1,9 +1,9 @@
-# jwxt-oauth SDK
+# jwxt-oauth 客户端
 
 零依赖客户端，浏览器和 Node 18+ 都能用（依赖全局 `fetch` / `crypto.subtle`）。
 
 ```js
-import { JwxtOAuthClient, JwxtError } from './sdk/index.mjs';
+import { JwxtOAuthClient, JwxtError } from './client/index.mjs';
 ```
 
 ## 1. Client Credentials（服务端/脚本）
@@ -67,7 +67,7 @@ const me = await client.me();
 
 ## 3. 自动刷新
 
-token 响应带 `refresh_token` 时（需要 `offline_access`），SDK 会在过期前 60 秒或收到 401 时自动 `refresh()` 并重试一次。
+token 响应带 `refresh_token` 时（需要 `offline_access`），客户端会在过期前 60 秒或收到 401 时自动 `refresh()` 并重试一次。
 
 ```js
 const tokens = await client.exchangeCode({ code, codeVerifier });

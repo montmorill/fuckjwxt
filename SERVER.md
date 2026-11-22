@@ -15,7 +15,7 @@
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
 - **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
 - 管理 API + 本地 CLI。
-- 客户端 SDK：`sdk/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
+- 客户端：`client/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
 - OpenAPI 3.0（`GET /openapi.json`，`npm run openapi` 生成，`npm run openapi:check` 校验）。
 
 ## 快速开始
@@ -242,8 +242,8 @@ CLI：`node scripts/admin.mjs` 查看全部命令。
 ## 目录
 
 ```
-sdk/
-  index.mjs         客户端 SDK
+client/
+  index.mjs         浏览器/Node 客户端
   index.d.ts        TypeScript 类型
 server/
   config.mjs        环境变量与常量
@@ -264,7 +264,7 @@ scripts/
 tests/
   oauth.mjs          OAuth 端到端测试
   caldav.mjs         CalDAV 端到端测试
-  sdk.mjs            SDK 端到端测试
+  client.mjs         客户端端到端测试
   fixtures/          CalDAV 测试夹具
 ```
 
@@ -272,4 +272,4 @@ tests/
 
 - OAuth 端到端 **39 项**：服务登录、授权确认、PKCE、code 单次、多用户绑定、client_credentials、refresh 轮换/重放、revoke、CalDAV 隔离、学号登录与强智密码等。
 - CalDAV **17 项**：PROPFIND（含 `/.well-known/caldav`、根路径、标准首页与 OPPO 课程首页）/REPORT（calendar-query、multiget、sync-collection、OPPO 独立事件）/GET、ETag/304、错误密码 401。
-- SDK **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。
+- 客户端 **11 项**：client_credentials、me/semesters/timetable/grades、PKCE、authorizationUrl、错误、storage。

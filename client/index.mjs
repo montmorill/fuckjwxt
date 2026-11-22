@@ -1,4 +1,4 @@
-// jwxt-oauth 客户端 SDK（浏览器 / Node 18+，零依赖）。
+// jwxt-oauth 客户端（浏览器 / Node 18+，零依赖）。
 // 支持：client_credentials、authorization_code + PKCE、refresh、revoke、API 封装。
 export class JwxtError extends Error {
   constructor(status, error, description) {

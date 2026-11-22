@@ -1,7 +1,7 @@
-// SDK 端到端测试。
-// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node tests/sdk.mjs
+// 客户端端到端测试。
+// 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node tests/client.mjs
 import { existsSync } from 'node:fs';
-import { JwxtOAuthClient, JwxtError } from '../sdk/index.mjs';
+import { JwxtOAuthClient, JwxtError } from '../client/index.mjs';
 
 for (const p of ['.env', '../.env']) {
   if (existsSync(p)) {
@@ -52,13 +52,13 @@ try {
   }
 
   const created = await post('/admin/clients', {
-    name: 'test-sdk',
+    name: 'test-client',
     redirectUris: ['http://localhost:9999/cb'],
     scopes: ['jwxt.read', 'jwxt.profile'],
     userId: primary.id,
   });
   clientId = created.client_id;
-  ok('create sdk client', Boolean(clientId && created.client_secret));
+  ok('create client', Boolean(clientId && created.client_secret));
 
   const client = new JwxtOAuthClient({
     baseUrl: BASE,
