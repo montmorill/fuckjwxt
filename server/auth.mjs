@@ -172,7 +172,7 @@ export function renderLoginPage({ csrf, next, error = '', account = '' }) {
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <div class="actions"><button class="primary" type="submit">登录</button></div>
   </form>
-  <p class="muted">未设置服务密码时可直接使用教务密码；管理员可通过 <code>PUT /admin/users/{id}</code> 设置服务密码。</p>
+  <p class="muted">未设置服务密码时可直接使用教务密码。</p>
 </div></body></html>`;
 }
 
