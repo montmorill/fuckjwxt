@@ -209,12 +209,17 @@ export function renderConsentPage({ csrf, user, client, scopes, params }) {
 
 const accountStyle = `
   .card.wide{max-width:860px}
+  .account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+  .account-head h1{margin:0 0 6px}
+  .account-head .sub{margin:0}
+  a.logout{font-size:13px;color:#6b7280;text-decoration:none;border:1px solid #d1d5db;border-radius:8px;padding:7px 10px;white-space:nowrap;flex:0 0 auto}
+  a.logout:hover{background:#f9fafb;color:#374151}
   h2{font-size:16px;margin:26px 0 8px}
-  .row{display:flex;gap:10px;align-items:flex-end;margin:6px 0 4px}
-  .row label{flex:0 0 auto;margin:0;white-space:nowrap}
-  .row input[type=text]{flex:1}
-  .row button{flex:0 0 auto;margin:0}
-  .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:16px 0;font-size:14px}
+  .row{display:flex;gap:10px;align-items:center;margin:0 0 4px}
+  .row label{flex:0 0 auto;margin:0;white-space:nowrap;line-height:1.2}
+  .row input[type=text]{flex:1;height:42px}
+  .row button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;margin:0;padding:0 16px;height:42px}
+  .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:0 0 16px;font-size:14px}
   .token-box p{margin:6px 0}
   .token-url{display:block;word-break:break-all;line-height:1.6;margin:8px 0;background:#fff}
   .token-field{display:flex;gap:8px;align-items:flex-start;margin:10px 0}
@@ -227,7 +232,8 @@ const accountStyle = `
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
   table.tokens th{color:#6b7280;font-weight:500;white-space:nowrap}
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
-  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}}
+  .note-center{text-align:center}
+  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}.account-head{flex-direction:column;align-items:flex-start}}
 `;
 
 export function renderAccountPage({ user, csrf, tokens, newToken = null, error = '' }) {
@@ -275,11 +281,15 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>我的账号 · 强智 Gateway</title><style>${pageStyle}${accountStyle}</style></head><body>
 <div class="card wide">
-  <h1>我的账号</h1>
-  <p class="sub">学号 <strong>${htmlEscape(user.account)}</strong></p>
+  <div class="account-head">
+    <div>
+      <h1>我的账号</h1>
+      <p class="sub">学号 <strong>${htmlEscape(user.account)}</strong></p>
+    </div>
+    <a class="logout" href="/logout">退出登录</a>
+  </div>
   ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
   ${tokenBox}
-  <h2>CalDAV token</h2>
   <form method="post" action="/account/caldav-tokens" class="row">
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <label for="label">备注</label>
@@ -287,8 +297,8 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <button class="primary" type="submit">生成订阅</button>
   </form>
   ${tokenTable}
-  <p class="muted">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。</p>
-  <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号；密码可以填 token，也可以直接填<b>教务系统密码</b>。token / 链接只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
+  <p class="muted note-center">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。 </p>
+  <p class="muted">CalDAV 账户：服务器填 <code>${config.issuer}/caldav/</code>，用户名填学号；密码可以填 token，也可以直接填教务系统密码。<br>token / 链接只在生成时显示一次，没保存就撤销后重新生成。</p>
 </div>
 <script>
   function copyText(id, btn) {
