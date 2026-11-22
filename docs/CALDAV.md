@@ -36,7 +36,8 @@ http://<host>:8787/caldav/
 | iOS / macOS 日历 | 添加账户 → 其他 → CalDAV；服务器填上面的地址，用户名填学号，密码填该用户的 CalDAV token（或强智密码） |
 | Thunderbird | 新建日历 → 网络上 → CalDAV；URL 同上 + 用户名/密码 |
 | DAVx5 (Android) | 添加账户 → URL + 用户名密码 → 选择该用户的“课表” |
-| 只读订阅（Apple 日历、Google 日历等） | `http://<host>:8787/caldav/feed/<token>.ics`（token 即 CalDAV token，URL 本身就是凭据） |
+| 只读订阅（Apple 日历、Google 日历等） | `https://<host>:8787/caldav/feed/<token>.ics`（token 即 CalDAV token，URL 本身就是凭据） |
+| 只读订阅（学号 + 密码） | `https://<host>:8787/caldav/feed/<学号>/<密码>.ics`（密码可为 CalDAV token 或教务密码；特殊字符需 URL 编码） |
 
 发现入口：
 
@@ -55,6 +56,7 @@ GET /.well-known/caldav  → 301 /caldav/
 /caldav/calendars/<学号>/timetable/<hash>.ics
 /caldav/calendars/<学号>/timetable.ics
 /caldav/feed/<token>.ics                     # 订阅 URL（token 在路径里）
+/caldav/feed/<学号>/<密码>.ics               # 订阅 URL（学号+密码在路径里）
 ```
 
 首页 Depth 1 的差异：OPPO 列出每门课一个日历，其他客户端列出 `timetable` 合集。`timetable` 路径始终可用。
@@ -75,6 +77,14 @@ URL 里的 token 就是凭据，不要发到公开渠道；泄露后用 `del-cal
 生产环境请用 HTTPS。也可以在 URL 里把 `http://` 换成 `webcal://`，部分客户端会直接打开日历 App。
 
 原来的 `http://<host>:8787/caldav/calendars/<学号>/timetable.ics`（Basic 认证）仍然可用。
+
+如果不想单独签发 token，也可以把学号和密码直接拼进 URL：
+
+```
+https://<host>:8787/caldav/feed/<学号>/<密码>.ics
+```
+
+`<密码>` 可以是 CalDAV token，也可以是教务密码；密码里的特殊字符要做 URL 编码。这个 URL 本身就是凭据，务必走 HTTPS；能签发 token 时优先用 token（可单独撤销，不影响教务密码）。
 
 ## 数据与时间
 
@@ -107,7 +117,7 @@ URL 里的 token 就是凭据，不要发到公开渠道；泄露后用 `del-cal
 
 - **Basic**：用户名 = 学号（`users.account`）；密码可以是该用户的 CalDAV token（数据库只存 SHA-256），也可以直接使用该用户保存的强智教务密码（解密后比对）。
 - **Bearer**：OAuth access token（需要 `jwxt.read`），绑定 token 的 `user_id`。
-- **订阅 URL**：`/caldav/feed/<token>.ics` 直接把 token 放在路径里，不需要请求头；访问日志会打码。
+- **订阅 URL**：`/caldav/feed/<token>.ics` 直接把 token 放在路径里，不需要请求头；也可以写成 `/caldav/feed/<学号>/<密码>.ics`，密码用 CalDAV token 或教务密码。访问日志会打码。
 - Basic 失败返回 401；跨用户路径返回 404。
 - 每个用户可签发多个 token，单独撤销；token 只显示一次。
 - 强智密码可以直连，但 Basic 是明文传输：生产环境务必走 HTTPS；能给客户端单独签发 token 时优先用 token，泄露后可单独撤销而不影响教务密码。
@@ -143,4 +153,4 @@ ADMIN_TOKEN=<ADMIN_TOKEN> \
 npm run test:caldav
 ```
 
-覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含标准/OPPO 首页与课程颜色）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、订阅 URL、错误密码 401。
+覆盖：OPTIONS、根路径 / `/.well-known/caldav` 与 principal/home/calendar 的 PROPFIND（含标准/OPPO 首页与课程颜色）、REPORT（calendar-query / multiget / sync-collection / OPPO 独立事件）、单个事件 GET、整表 GET、ETag/304、订阅 URL（token / 学号+密码）、错误密码 401。

@@ -204,6 +204,17 @@ try {
   const subBad = await fetchWithTimeout(`${origin}/caldav/feed/not-a-real-token.ics`);
   ok('无效订阅 token 返回 401', subBad.status === 401);
 
+  // 学号 + 密码（CalDAV token 或教务密码）拼在 URL 里，同样不需要 Basic。
+  const userSubUrl = `${origin}/caldav/feed/${encodeURIComponent(ACCOUNT)}/${encodeURIComponent(PASS)}.ics`;
+  const userSub = await fetchWithTimeout(userSubUrl);
+  const userSubText = await userSub.text();
+  ok('订阅 URL（学号+token）返回 ICS', userSub.status === 200
+    && /text\/calendar/i.test(userSub.headers.get('content-type') || '')
+    && userSubText.includes('BEGIN:VEVENT'));
+
+  const userSubBad = await fetchWithTimeout(`${origin}/caldav/feed/${encodeURIComponent(ACCOUNT)}/wrong-password.ics`);
+  ok('订阅 URL（学号+错误密码）返回 401', userSubBad.status === 401);
+
   const bad = await fetchWithTimeout(new URL('/caldav/', origin), {
     method: 'PROPFIND',
     headers: {

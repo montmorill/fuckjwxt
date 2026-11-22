@@ -100,6 +100,20 @@ export function clearCache(userId) {
 }
 
 // ---------- 认证 ----------
+function verifyCalDavPassword(user, password) {
+  // 密码可以是该用户的 CalDAV token，也可以直接是强智教务密码。
+  const token = db.getCalDavTokenByHash(hashToken(password));
+  if (token && token.user_id === user.id) {
+    db.touchCalDavToken(token.id);
+    return true;
+  }
+  try {
+    return safeEqual(decrypt(user.password_enc), password);
+  } catch {
+    return false;
+  }
+}
+
 async function authenticate(req) {
   const header = req.headers.authorization || '';
 
@@ -110,20 +124,10 @@ async function authenticate(req) {
     const password = idx >= 0 ? decoded.slice(idx + 1) : '';
 
     const user = db.getUserByAccount(account);
-    if (!user || user.disabled) return { error: [401, 'CalDAV 学号或密码错误'], scheme: 'Basic' };
-
-    // 密码可以是该用户的 CalDAV token，也可以直接是强智教务密码。
-    const token = db.getCalDavTokenByHash(hashToken(password));
-    if (token && token.user_id === user.id) {
-      db.touchCalDavToken(token.id);
-      return { user };
+    if (!user || user.disabled || !verifyCalDavPassword(user, password)) {
+      return { error: [401, 'CalDAV 学号或密码错误'], scheme: 'Basic' };
     }
-
-    try {
-      if (safeEqual(decrypt(user.password_enc), password)) return { user };
-    } catch { /* 解密失败按密码错误处理 */ }
-
-    return { error: [401, 'CalDAV 用户名或密码错误'], scheme: 'Basic' };
+    return { user };
   }
 
   if (/^Bearer /i.test(header)) {
@@ -785,16 +789,27 @@ async function handleGet(req, res, user, path) {
   return send404(res);
 }
 
+async function sendFeed(req, res, user) {
+  const cal = await calendarData(user, expandEventsFor(req));
+  const head = req.method === 'HEAD';
+  if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
+  return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
+}
+
 async function handleFeed(req, res, token) {
   const row = db.getCalDavTokenByHash(hashToken(token));
   const user = row ? db.getUserById(row.user_id) : null;
   if (!row || !user || user.disabled) return sendText(res, 401, '订阅 token 无效或已撤销');
   db.touchCalDavToken(row.id);
+  return sendFeed(req, res, user);
+}
 
-  const cal = await calendarData(user, expandEventsFor(req));
-  const head = req.method === 'HEAD';
-  if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
-  return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
+async function handleFeedUser(req, res, account, password) {
+  const user = db.getUserByAccount(account);
+  if (!user || user.disabled || !verifyCalDavPassword(user, password)) {
+    return sendText(res, 401, '订阅账号或密码错误');
+  }
+  return sendFeed(req, res, user);
 }
 
 function handleOptions(res) {
@@ -817,8 +832,24 @@ export async function handleCalDav(req, res, url) {
 
   if (method === 'OPTIONS') return handleOptions(res);
 
-  // /caldav/feed/<token>.ics：把 CalDAV token 放进路径，供只接受“订阅 URL”
-  // 的客户端（如 Apple 日历）直接拉取整表，不需要 Basic 认证。
+  // /caldav/feed/<token>.ics：token 在路径里，不需要 Basic。
+  // /caldav/feed/<学号>/<密码>.ics：账号密码（CalDAV token 或教务密码）在路径里，
+  // 供只能填一个订阅 URL、不能传 Basic 的客户端使用。
+  const feedUser = url.pathname.match(/^\/caldav\/feed\/([^/]+)\/([^/]+)\.ics$/);
+  if (feedUser) {
+    if (method !== 'GET' && method !== 'HEAD') {
+      return sendText(res, 405, '只读订阅', { Allow: 'GET, HEAD' });
+    }
+    let account, password;
+    try {
+      account = decodeURIComponent(feedUser[1]);
+      password = decodeURIComponent(feedUser[2]);
+    } catch {
+      return sendText(res, 400, '订阅 URL 编码错误');
+    }
+    return handleFeedUser(req, res, account, password);
+  }
+
   const feed = url.pathname.match(/^\/caldav\/feed\/([^/]+)\.ics$/);
   if (feed) {
     if (method !== 'GET' && method !== 'HEAD') {
@@ -832,7 +863,7 @@ export async function handleCalDav(req, res, url) {
     const [status, message] = auth.error;
     const challenge = auth.scheme === 'Bearer'
       ? 'Bearer error="invalid_token"'
-      : 'Basic realm="强智 Gateway CalDAV", charset="UTF-8"';
+      : 'Basic realm="QZGW CalDAV", charset="UTF-8"';
     res.setHeader('WWW-Authenticate', challenge);
     return sendText(res, status, message);
   }
