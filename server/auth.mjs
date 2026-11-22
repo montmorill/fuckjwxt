@@ -248,7 +248,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   const tokenBox = newToken ? `<div class="token-box">
     <strong>已生成「${htmlEscape(newToken.label)}」</strong>
     <p>以下内容只显示这一次，请立即保存：</p>
-    <div class="cred-title">CalDAV 账户（推荐）</div>
+    <div class="cred-title">CalDAV 账户</div>
     <div class="token-field">
       <div class="token-label">服务器</div>
       <code id="new-server" class="token-url">${htmlEscape(config.issuer + '/caldav/')}</code>
@@ -260,17 +260,16 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
       <button class="secondary slim" type="button" onclick="copyText('new-user', this)">复制</button>
     </div>
     <div class="token-field">
-      <div class="token-label">密码（token）</div>
+      <div class="token-label">密码 / Token</div>
       <code id="new-token" class="token-url">${htmlEscape(newToken.token)}</code>
       <button class="secondary slim" type="button" onclick="copyText('new-token', this)">复制</button>
     </div>
-    <div class="cred-title">.ics 订阅链接（不支持 CalDAV 的客户端）</div>
+    <div class="cred-title">.ics 订阅链接</div>
     <div class="token-field">
       <div class="token-label">链接</div>
       <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
       <button class="secondary slim" type="button" onclick="copyText('new-url', this)">复制</button>
     </div>
-    <p class="muted">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。</p>
   </div>` : '';
   const tokenTable = rows ? `<div class="table-wrap"><table class="tokens">
     <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th></th></tr></thead>
@@ -293,20 +292,6 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <button class="primary" type="submit">生成 CalDAV token</button>
   </form>
   ${tokenTable}
-  <h2>怎么添加</h2>
-  <p class="muted">能加 CalDAV 账户的客户端优先用 CalDAV；不支持 CalDAV 的再用 .ics 订阅。两种方式都只读。</p>
-  <div class="table-wrap"><table class="tokens how">
-    <thead><tr><th>客户端</th><th>CalDAV 账户（推荐）</th><th>.ics 订阅</th></tr></thead>
-    <tbody>
-      <tr><td>iPhone / iPad</td><td>设置 → 日历 → 账户 → 添加账户 → 其他 → 添加 CalDAV 账户</td><td>添加账户 → 其他 → 添加已订阅的日历，粘贴链接</td></tr>
-      <tr><td>macOS</td><td>日历 → 添加账户 → 其他 → CalDAV</td><td>日历 → 文件 → 新建日历订阅</td></tr>
-      <tr><td>OPPO 日历</td><td>日程同步与导入 → CalDAV 账号</td><td>日程同步与导入 → URL 日历，粘贴链接</td></tr>
-      <tr><td>Google 日历</td><td>不支持</td><td>网页版 calendar.google.com → 其他日历 → 通过 URL 添加</td></tr>
-      <tr><td>其他 Android</td><td>用 DAVx5 添加 CalDAV 账户</td><td>设置里找“添加日历 / 通过 URL 添加”</td></tr>
-      <tr><td>Thunderbird</td><td>新建日历 → 网络上 → CalDAV</td><td>—</td></tr>
-      <tr><td>Outlook</td><td>不支持</td><td>添加日历 → 从 Web 订阅，粘贴链接</td></tr>
-    </tbody>
-  </table></div>
   <p class="muted">CalDAV 账户：服务器 <code>${config.issuer}/caldav/</code>，用户名学号，密码 token。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
 <script>
