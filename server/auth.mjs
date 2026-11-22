@@ -228,6 +228,8 @@ const accountStyle = `
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
   .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
   .steps li{margin:4px 0}
+  .steps ul{margin:6px 0 0;padding-left:18px}
+  .steps ul li{margin:3px 0}
   @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}}
 `;
 
@@ -279,11 +281,17 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   ${tokenTable}
   <h2>怎么添加</h2>
   <ol class="steps">
-    <li><strong>iPhone</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历，粘贴链接。</li>
-    <li><strong>macOS</strong>：日历 → 文件 → 新建日历订阅，粘贴链接。</li>
-    <li><strong>OPPO</strong>：日历 → 日程同步与导入 → URL 日历  / CalDAV 账号。</li>
+    <li><strong>iPhone / iPad</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → <b>添加已订阅的日历</b>，粘贴 <b>.ics 订阅链接</b>。</li>
+    <li><strong>macOS</strong>：日历 → 文件 → <b>新建日历订阅</b>，粘贴 <b>.ics 订阅链接</b>。</li>
+    <li><strong>OPPO 日历</strong>：
+      <ul>
+        <li>只读订阅：日历 → 日程同步与导入 → <b>URL 日历</b>，粘贴 <b>.ics 订阅链接</b>。</li>
+        <li>CalDAV 账户：日历 → 日程同步与导入 → <b>CalDAV 账号</b>，服务器填 <code>${config.issuer}/caldav/</code>，用户名填学号，密码填 <b>token</b>。</li>
+      </ul>
+    </li>
+    <li><strong>其他客户端</strong>（Thunderbird、DAVx5 等）：添加 CalDAV 账户，服务器 <code>${config.issuer}/caldav/</code>，用户名填学号，密码填 <b>token</b>。</li>
   </ol>
-  <p class="muted">链接就是密码，不要发给别人；不用时点“撤销”。<a href="/logout">退出登录</a></p>
+  <p class="muted">只读订阅用 <b>.ics 链接</b>；需要填账号密码的客户端用 <b>CalDAV 账户</b>。链接和 token 只在生成时显示一次，没保存就撤销后重新生成。<a href="/logout">退出登录</a></p>
 </div>
 <script>
   function copyText(id, btn) {
