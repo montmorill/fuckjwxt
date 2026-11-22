@@ -87,7 +87,7 @@ URL 里的 token 就是凭据，不要发到公开渠道；泄露后用 `del-cal
 - 星期 1–7 映射周一到周日；周次从教学周历的第 1 周周一开始。
 - 学期默认取该用户教务系统里的当前学期；需要固定某学期时，在用户上设置 `caldavSemester`（CLI `--caldav-semester` 或管理 API），不设置则跟随当前学期。
 - 学期起始日期从 `/jsxsd/jxzl/jxzl_query` 的“第 1 周”行解析；解析失败会报错，不再用环境变量兜底。
-- 节次时间在 [`config/period-times.json`](config/period-times.json) 中配置，格式为 `"1-2": ["08:00", "09:40"]`；文件缺失时使用内置默认值。修改后需重启服务。
+- 节次时间在 [`config/period-times.json`](../config/period-times.json) 中配置，格式为 `"1-2": ["08:00", "09:40"]`；文件缺失时使用内置默认值。修改后需重启服务。
 
   ```json
   {

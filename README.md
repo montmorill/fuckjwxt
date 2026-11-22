@@ -6,10 +6,10 @@
 
 - [`docs/NOTES.md`](docs/NOTES.md) —— 登录流程、`scode/sxh` 编码、`ticqzket` 实测
 - [`docs/API.md`](docs/API.md) —— 登录后可用接口清单、参数、返回结构
-- [`SERVER.md`](SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
+- [`docs/SERVER.md`](docs/SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 - `/docs` —— 在线 API 文档（Swagger UI，从 `/openapi.json` 渲染；前端资源走 cdnjs）。支持授权码 + PKCE 登录，客户端 redirect URI 用 `http://<host>:8787/docs/oauth2-redirect.html`。
-- [`CALDAV.md`](CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
+- [`docs/CALDAV.md`](docs/CALDAV.md) —— 只读 CalDAV：把课表添加到系统日历
 - [`client/README.md`](client/README.md) —— 客户端：PKCE、自动刷新、数据 API 封装
 
 ## 目录
@@ -21,7 +21,7 @@ server/     OAuth2 服务端（node:http + node:sqlite + node:crypto）
 client/     浏览器/Node 客户端
 scripts/    管理 CLI 与 OpenAPI 生成/校验
 tests/      端到端测试与夹具
-docs/       协议笔记（不含抓包产物）
+docs/       协议笔记 + 服务端/CalDAV 文档（不含抓包产物）
 ```
 
 ## 服务端快速开始
@@ -43,7 +43,7 @@ npm start
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/qzgw.db`。
 
-详细用法见 [`SERVER.md`](SERVER.md) 和 [`CALDAV.md`](CALDAV.md)。
+详细用法见 [`docs/SERVER.md`](docs/SERVER.md) 和 [`docs/CALDAV.md`](docs/CALDAV.md)。
 
 ## 开发
 
