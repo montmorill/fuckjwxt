@@ -230,9 +230,12 @@ const accountStyle = `
   .table-wrap{overflow-x:auto}
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+  table.tokens th:first-child,table.tokens td:first-child{padding-left:0}
+  table.tokens th:last-child,table.tokens td:last-child{padding-right:0;text-align:right}
   table.tokens th{color:#6b7280;font-weight:500;white-space:nowrap}
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
   .note-center{text-align:center}
+  .note-last{line-height:1.8}
   @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}.account-head{flex-direction:column;align-items:flex-start}}
 `;
 
@@ -298,7 +301,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   </form>
   ${tokenTable}
   <p class="muted note-center">优先添加 CalDAV 账户；不支持 CalDAV 的客户端再用 .ics 链接。两者都是只读。 </p>
-  <p class="muted">CalDAV 账户：服务器填 <code>${config.issuer}/caldav/</code>，用户名填学号；密码可以填 token，也可以直接填教务系统密码。<br>token / 链接只在生成时显示一次，没保存就撤销后重新生成。</p>
+  <p class="muted note-last">CalDAV 账户：服务器填 <code>${config.issuer}/caldav/</code>，用户名填学号；密码可以填 token，也可以直接填教务系统密码。<br>token / 链接只在生成时显示一次，没保存就撤销后重新生成。</p>
 </div>
 <script>
   function copyText(id, btn) {
