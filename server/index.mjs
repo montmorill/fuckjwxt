@@ -80,8 +80,8 @@ const safeUser = u => ({
   updatedAt: u.updated_at,
 });
 
-function redirect(res, location) {
-  res.writeHead(302, { ...baseHeaders(), Location: location });
+function redirect(res, location, status = 302) {
+  res.writeHead(status, { ...baseHeaders(), Location: location });
   res.end();
 }
 
@@ -221,13 +221,34 @@ add('GET', '/logout', logoutHandler, { skipOpenApi: true });
 add('POST', '/logout', logoutHandler, { skipOpenApi: true });
 
 // ---------- routes: account self-service ----------
+// POST 后重定向回 /，生成结果只通过服务端一次性 flash 传给下一次 GET，
+// 避免地址栏停在 POST 路径、刷新时重复生成 token。
+const accountFlashes = new Map();
+const ACCOUNT_FLASH_TTL = 5 * 60_000;
+
+function setAccountFlash(session, data) {
+  const t = Date.now();
+  for (const [k, v] of accountFlashes) if (v.at + ACCOUNT_FLASH_TTL < t) accountFlashes.delete(k);
+  accountFlashes.set(session.id_hash, { ...data, at: t });
+}
+
+function takeAccountFlash(session) {
+  const entry = accountFlashes.get(session.id_hash);
+  if (!entry) return {};
+  accountFlashes.delete(session.id_hash);
+  return entry.at + ACCOUNT_FLASH_TTL < Date.now() ? {} : entry;
+}
+
 add('GET', '/', async ({ req, res }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/');
+  if (!current) return redirect(res, '/login');
+  const flash = takeAccountFlash(current.session);
   sendHtml(res, 200, renderAccountPage({
     user: current.user,
     csrf: current.session.csrf_token,
     tokens: listCalDavTokens(current.user.id),
+    newToken: flash.newToken || null,
+    error: flash.error || '',
   }));
 }, { skipOpenApi: true });
 
@@ -235,39 +256,27 @@ add('GET', '/account', async ({ res }) => redirect(res, '/'), { skipOpenApi: tru
 
 add('POST', '/account/caldav-tokens', async ({ req, res }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/');
+  if (!current) return redirect(res, '/login');
   const form = await parseForm(req);
   if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
-    return sendHtml(res, 400, renderAccountPage({
-      user: current.user,
-      csrf: current.session.csrf_token,
-      tokens: listCalDavTokens(current.user.id),
-      error: '会话已过期，请重试',
-    }));
+    setAccountFlash(current.session, { error: '会话已过期，请重试' });
+    return redirect(res, '/', 303);
   }
   const label = String(form.label || '').trim().slice(0, 64);
   const token = randomToken(32);
   createCalDavToken({ userId: current.user.id, label: label || null, tokenHash: hashToken(token) });
   const url = `${config.issuer}/caldav/feed/${encodeURIComponent(current.user.account)}/${encodeURIComponent(token)}.ics`;
-  sendHtml(res, 200, renderAccountPage({
-    user: current.user,
-    csrf: current.session.csrf_token,
-    tokens: listCalDavTokens(current.user.id),
-    newToken: { label: label || '未命名', url, token },
-  }));
+  setAccountFlash(current.session, { newToken: { label: label || '未命名', url, token } });
+  redirect(res, '/', 303);
 }, { skipOpenApi: true });
 
 add('POST', '/account/caldav-tokens/:tokenId/delete', async ({ req, res, params }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/');
+  if (!current) return redirect(res, '/login');
   const form = await parseForm(req);
   if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
-    return sendHtml(res, 400, renderAccountPage({
-      user: current.user,
-      csrf: current.session.csrf_token,
-      tokens: listCalDavTokens(current.user.id),
-      error: '会话已过期，请重试',
-    }));
+    setAccountFlash(current.session, { error: '会话已过期，请重试' });
+    return redirect(res, '/', 303);
   }
   const tokenId = Number(params.tokenId);
   if (tokenId) revokeCalDavToken(tokenId, current.user.id);
