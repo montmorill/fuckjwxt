@@ -15,7 +15,7 @@
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
 - **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token，见 [`CALDAV.md`](CALDAV.md)。
 - 管理 API + 本地 CLI。
-- **账号自助页** `/account`：用户登录后可以自己生成/撤销 CalDAV 订阅链接，不需要 OAuth，也不需要管理员代签 token。
+- **账号自助页** `/account`：用户登录后可以自己生成/撤销 CalDAV 订阅链接和 token，不需要 OAuth，也不需要管理员代签 token。
 - 客户端：`client/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
 - OpenAPI 3.0（`GET /openapi.json`，`GET /docs` 为 Swagger UI；`npm run openapi` 生成，`npm run openapi:check` 校验）。
 

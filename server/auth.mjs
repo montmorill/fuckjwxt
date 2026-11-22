@@ -217,6 +217,10 @@ const accountStyle = `
   .token-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin:16px 0;font-size:14px}
   .token-box p{margin:6px 0}
   .token-url{display:block;word-break:break-all;line-height:1.6;margin:8px 0;background:#fff}
+  .token-field{display:flex;gap:8px;align-items:flex-start;margin:10px 0}
+  .token-label{flex:0 0 110px;font-size:12px;color:#6b7280;padding-top:8px}
+  .token-field .token-url{flex:1;margin:0}
+  .token-field button.slim{flex:0 0 auto;margin:0;padding:8px 10px;font-size:13px}
   .table-wrap{overflow-x:auto}
   table.tokens{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   table.tokens th,table.tokens td{padding:8px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
@@ -225,7 +229,7 @@ const accountStyle = `
   button.link{background:none;border:0;color:#dc2626;padding:0;font-size:13px;cursor:pointer;flex:none}
   .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
   .steps li{margin:4px 0}
-  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}}
+  @media(max-width:560px){.row{flex-direction:column;align-items:stretch}.row button{width:100%}.token-field{flex-direction:column}.token-label{padding-top:0}}
 `;
 
 export function renderAccountPage({ user, csrf, tokens, newToken = null, error = '' }) {
@@ -245,9 +249,18 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   }).join('');
   const tokenBox = newToken ? `<div class="token-box">
     <strong>已生成「${htmlEscape(newToken.label)}」</strong>
-    <p>这个链接只显示这一次，请立即复制保存：</p>
-    <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
-    <div class="actions"><button class="primary" type="button" onclick="copyUrl(this)">复制链接</button></div>
+    <p>以下内容只显示这一次，请立即保存：</p>
+    <div class="token-field">
+      <div class="token-label">.ics 订阅链接</div>
+      <code id="new-url" class="token-url">${htmlEscape(newToken.url)}</code>
+      <button class="secondary slim" type="button" onclick="copyText('new-url', this)">复制</button>
+    </div>
+    <div class="token-field">
+      <div class="token-label">CalDAV 密码（token）</div>
+      <code id="new-token" class="token-url">${htmlEscape(newToken.token)}</code>
+      <button class="secondary slim" type="button" onclick="copyText('new-token', this)">复制</button>
+    </div>
+    <p class="muted">Apple/Google 日历用链接；CalDAV 账户用户名填学号，密码填 token。</p>
   </div>` : '';
   const tokenTable = rows ? `<div class="table-wrap"><table class="tokens">
     <thead><tr><th>备注</th><th>创建时间</th><th>最近使用</th><th>状态</th><th></th></tr></thead>
@@ -267,7 +280,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
     <input type="hidden" name="csrf" value="${htmlEscape(csrf)}">
     <label for="label">备注</label>
     <input id="label" name="label" type="text" maxlength="64" placeholder="手机 / 电脑 / iPad">
-    <button class="primary" type="submit">生成订阅链接</button>
+    <button class="primary" type="submit">生成订阅 token / 链接</button>
   </form>
   ${tokenTable}
   <h2>怎么添加</h2>
@@ -279,11 +292,15 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   <p class="muted">链接就是密码，不要发给别人；不用时点“撤销”。<a href="/logout">退出登录</a></p>
 </div>
 <script>
-  function copyUrl(btn) {
-    const el = document.getElementById('new-url');
+  function copyText(id, btn) {
+    const el = document.getElementById(id);
     if (!el) return;
     const text = el.textContent;
-    const done = () => { btn.textContent = '已复制'; setTimeout(() => { btn.textContent = '复制链接'; }, 1200); };
+    const done = () => {
+      const old = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(() => { btn.textContent = old; }, 1200);
+    };
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text).then(done).catch(() => {});
     } else {

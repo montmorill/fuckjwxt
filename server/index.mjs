@@ -251,7 +251,7 @@ add('POST', '/account/caldav-tokens', async ({ req, res }) => {
     user: current.user,
     csrf: current.session.csrf_token,
     tokens: listCalDavTokens(current.user.id),
-    newToken: { label: label || '未命名', url },
+    newToken: { label: label || '未命名', url, token },
   }));
 }, { skipOpenApi: true });
 

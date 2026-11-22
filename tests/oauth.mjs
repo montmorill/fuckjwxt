@@ -172,7 +172,7 @@ try {
     body: new URLSearchParams({ csrf: accountCsrf, label: 'test-account' }).toString(),
   }, primaryJar);
   const createdSubHtml = await createdSub.text();
-  ok('account create subscription', createdSub.status === 200 && createdSubHtml.includes('/caldav/feed/'));
+  ok('account create subscription', createdSub.status === 200 && createdSubHtml.includes('/caldav/feed/') && createdSubHtml.includes('id="new-token"'));
 
   const subTokenId = [...createdSubHtml.matchAll(/\/account\/caldav-tokens\/(\d+)\/delete/g)].pop()?.[1];
   ok('account token listed', Boolean(subTokenId));
