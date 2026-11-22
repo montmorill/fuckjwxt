@@ -281,7 +281,7 @@ export function renderAccountPage({ user, csrf, tokens, newToken = null, error =
   <ol class="steps">
     <li><strong>iPhone</strong>：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历，粘贴链接。</li>
     <li><strong>macOS</strong>：日历 → 文件 → 新建日历订阅，粘贴链接。</li>
-    <li><strong>Android</strong>：日历 App → 添加日历 → 通过 URL 订阅。</li>
+    <li><strong>OPPO</strong>：日历 → 日程同步与导入 → URL 日历  / CalDAV 账号。</li>
   </ol>
   <p class="muted">链接就是密码，不要发给别人；不用时点“撤销”。<a href="/logout">退出登录</a></p>
 </div>

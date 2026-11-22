@@ -26,7 +26,7 @@ const dataOp = ({ summary, schema, scopes: sc = ['jwxt.read'], parameters = [], 
 });
 
 const paths = {
-  '/': {
+  '/info': {
     get: {
       tags: ['Meta'],
       summary: '服务信息',

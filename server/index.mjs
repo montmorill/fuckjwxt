@@ -153,7 +153,7 @@ const validateScopes = scopes => {
 // ---------- routes: meta ----------
 const openapi = buildOpenApi(config.issuer);
 
-add('GET', '/', async () => ({
+add('GET', '/info', async () => ({
   name: 'qzgw',
   product: '强智 Gateway',
   issuer: config.issuer,
@@ -221,9 +221,9 @@ add('GET', '/logout', logoutHandler, { skipOpenApi: true });
 add('POST', '/logout', logoutHandler, { skipOpenApi: true });
 
 // ---------- routes: account self-service ----------
-add('GET', '/account', async ({ req, res }) => {
+add('GET', '/', async ({ req, res }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/account');
+  if (!current) return redirect(res, '/login?next=/');
   sendHtml(res, 200, renderAccountPage({
     user: current.user,
     csrf: current.session.csrf_token,
@@ -231,9 +231,11 @@ add('GET', '/account', async ({ req, res }) => {
   }));
 }, { skipOpenApi: true });
 
+add('GET', '/account', async ({ res }) => redirect(res, '/'), { skipOpenApi: true });
+
 add('POST', '/account/caldav-tokens', async ({ req, res }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/account');
+  if (!current) return redirect(res, '/login?next=/');
   const form = await parseForm(req);
   if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
     return sendHtml(res, 400, renderAccountPage({
@@ -257,7 +259,7 @@ add('POST', '/account/caldav-tokens', async ({ req, res }) => {
 
 add('POST', '/account/caldav-tokens/:tokenId/delete', async ({ req, res, params }) => {
   const current = getSessionUser(req);
-  if (!current) return redirect(res, '/login?next=/account');
+  if (!current) return redirect(res, '/login?next=/');
   const form = await parseForm(req);
   if (!form.csrf || !safeEqual(form.csrf, current.session.csrf_token)) {
     return sendHtml(res, 400, renderAccountPage({
@@ -269,7 +271,7 @@ add('POST', '/account/caldav-tokens/:tokenId/delete', async ({ req, res, params 
   }
   const tokenId = Number(params.tokenId);
   if (tokenId) revokeCalDavToken(tokenId, current.user.id);
-  redirect(res, '/account');
+  redirect(res, '/');
 }, { skipOpenApi: true });
 
 // ---------- routes: oauth ----------

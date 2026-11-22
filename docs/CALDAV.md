@@ -16,7 +16,7 @@ curl -X POST http://localhost:8787/admin/users/<user_id>/caldav-tokens \
   -H 'Content-Type: application/json' -d '{"label":"phone"}'
 ```
 
-用户也可以自己登录 `https://<host>:8787/account`，在页面上生成/撤销订阅链接和对应的 CalDAV token，不需要管理员代签。
+用户也可以自己登录 `https://<host>:8787/`，在页面上生成/撤销订阅链接和对应的 CalDAV token，不需要管理员代签。
 
 返回的 token **只显示一次**，作为该用户的 CalDAV Basic 密码。可以给同一用户签发多个（手机、电脑），单独撤销：
 

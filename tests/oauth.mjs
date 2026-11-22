@@ -161,7 +161,7 @@ try {
   ok('wrong service password rejected', badLogin.status === 401);
 
   // ---------- account self-service ----------
-  const accountPage = await web('/account', {}, primaryJar);
+  const accountPage = await web('/', {}, primaryJar);
   const accountHtml = await accountPage.text();
   ok('account page', accountPage.status === 200 && accountHtml.includes('我的账号'));
 
@@ -185,7 +185,7 @@ try {
     }, primaryJar);
     ok('account revoke subscription', revokedSub.status === 302);
 
-    const afterRevoke = await web('/account', {}, primaryJar);
+    const afterRevoke = await web('/', {}, primaryJar);
     const afterRevokeHtml = await afterRevoke.text();
     ok('revoked token hidden', !afterRevokeHtml.includes(accountLabel));
   }
