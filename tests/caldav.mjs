@@ -128,7 +128,8 @@ try {
   const eventCount = (report.text.match(/BEGIN:VEVENT/g) || []).length;
   ok('REPORT calendar-query 返回 VEVENT（RDATE）', report.status === 207
     && report.text.includes('BEGIN:VCALENDAR') && eventCount > 0
-    && report.text.includes('RDATE;TZID=Asia/Shanghai:'), `events=${eventCount}`);
+    && report.text.includes('RDATE;TZID=Asia/Shanghai:')
+    && report.text.includes('提前期末考试'), `events=${eventCount}`);
 
   const sync = await req(calHref, {
     method: 'REPORT',
@@ -178,6 +179,8 @@ try {
     && feed.text.includes('BEGIN:VCALENDAR') && feed.text.includes('DTSTART;TZID=Asia/Shanghai:')
     && feed.text.includes('DESCRIPTION:教师：')
     && feed.text.includes('CATEGORIES:课程表,')
+    && feed.text.includes('CATEGORIES:考试,课程表,')
+    && feed.text.includes('提前期末考试')
     && !feed.text.includes('STATUS:')
     && !feed.text.includes('TRANSP:')
     && /COLOR:#[0-9A-F]{6}/.test(feed.text)

@@ -31,6 +31,7 @@ const COURSE_COLORS = [
   '#BE675E', '#C1834A', '#BB963E', '#5FA658', '#539BA7', '#6993DF',
   '#7B72DD', '#AE69C2', '#B05A87', '#729539', '#809DBB', '#AD746D',
 ];
+const EXAM_COLOR = '#C0392B';
 const DEFAULT_PERIOD_TIMES = {
   '1-2': ['08:00', '09:50'],
   '3-4': ['10:10', '12:00'],
@@ -362,11 +363,103 @@ function buildEvents(items, start, semester, calendarHref, expand) {
   return events;
 }
 
-function buildCourses(events, homeHref) {
-  const groups = new Map();
+// 解析教务考试时间，如 “2026-12-01 14:00-15:50”；只有日期时按全天事件处理。
+function parseExamWhen(exam) {
+  const raw = String(exam.kssj || '').trim();
+  const withTime = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T(（]*(\d{1,2}):(\d{2})\s*[-~～至]\s*(\d{1,2}):(\d{2})/);
+  if (withTime) {
+    return {
+      day: { y: +withTime[1], m: +withTime[2], d: +withTime[3] },
+      allDay: false,
+      sh: +withTime[4], sm: +withTime[5], eh: +withTime[6], em: +withTime[7],
+    };
+  }
+  const dateOnly = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!dateOnly) return null;
+  const day = { y: +dateOnly[1], m: +dateOnly[2], d: +dateOnly[3] };
+  const time = String(exam.ksxxsj || '').match(/(\d{1,2}):(\d{2})\s*[-~～至]\s*(\d{1,2}):(\d{2})/);
+  if (time) {
+    return { day, allDay: false, sh: +time[1], sm: +time[2], eh: +time[3], em: +time[4] };
+  }
+  return { day, allDay: true };
+}
+
+const ymd = ({ y, m, d }) => `${y}${pad(m)}${pad(d)}`;
+
+function nextDay({ y, m, d }) {
+  const dt = new Date(Date.UTC(y, m - 1, d + 1));
+  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+}
+
+function buildExamEvents(exams, semester, calendarHref, compact, stamp) {
+  const esc = compact ? icsEscapeOppo : icsEscapeRfc;
+  const events = [];
+  const seen = new Set();
+  const sources = [
+    [exams?.final || [], '期末考试'],
+    [exams?.courseEnd || [], '结课考试'],
+  ];
+
+  for (const [list, fallbackType] of sources) {
+    for (const exam of list) {
+      const when = parseExamWhen(exam);
+      if (!when) continue;
+      const course = String(exam.kc_mc || exam.kcmc || '').trim();
+      const type = String(exam.ks_mc || exam.ksmc || fallbackType).trim() || '考试';
+      const title = course ? `${course} ${type}` : type;
+      const location = String(exam.js_mc || exam.ksdd || exam.location || '').trim();
+      const start = when.allDay
+        ? ymd(when.day)
+        : localStamp(when.day.y, when.day.m, when.day.d, when.sh, when.sm);
+      const hash = sha1(`exam|${semester}|${exam.kch || course}|${start}|${type}`);
+      if (seen.has(hash)) continue;
+      seen.add(hash);
+
+      const dtLines = when.allDay
+        ? [
+          `DTSTART;VALUE=DATE:${ymd(when.day)}`,
+          `DTEND;VALUE=DATE:${ymd(nextDay(when.day))}`,
+        ]
+        : [
+          `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(when.day.y, when.day.m, when.day.d, when.sh, when.sm)}`,
+          `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(when.day.y, when.day.m, when.day.d, when.eh, when.em)}`,
+        ];
+      const categories = ['考试', '课程表', course].filter(Boolean).map(esc).join(',');
+      const eventLines = [
+        'BEGIN:VEVENT',
+        `UID:${hash}@qzgw`,
+        `DTSTAMP:${stamp}`,
+        ...dtLines,
+        `SUMMARY:${esc(title)}`,
+        location ? `LOCATION:${esc(location)}` : '',
+        `DESCRIPTION:${esc(`考试：${type}`)}`,
+        compact ? '' : `COLOR:${EXAM_COLOR}`,
+        `CATEGORIES:${categories}`,
+        'END:VEVENT',
+      ].filter(Boolean);
+      const ics = vcalendar([eventLines], title, { compact });
+      events.push({
+        hash,
+        uid: `${hash}@qzgw`,
+        summary: title,
+        group: course || '考试',
+        href: `${calendarHref}${hash}.ics`,
+        etag: `"${sha256(ics).slice(0, 32)}"`,
+        ics,
+        eventLines,
+        start,
+        color: EXAM_COLOR,
+      });
+    }
+  }
+  return events;
+}
+
+function buildCourses(events, homeHref) {  const groups = new Map();
   for (const e of events) {
-    if (!groups.has(e.summary)) groups.set(e.summary, []);
-    groups.get(e.summary).push(e);
+    const key = e.group || e.summary;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(e);
   }
   return [...groups.entries()].map(([name, list]) => {
     const slug = sha1(name).slice(0, 12);
@@ -400,18 +493,29 @@ async function buildCalendar(user, expand) {
   if (!semester) throw new Error('没有可用学期');
 
   let items;
+  let exams = { final: [], courseEnd: [] };
   let start;
   if (fixture) {
     items = fixture.items;
+    exams = fixture.exams || exams;
     start = fixture.start;
   } else {
     items = await jwxt.timetable(user, { semester });
+    try {
+      exams = await jwxt.exams(user, { semester });
+    } catch (e) {
+      console.warn('[caldav] 考试安排获取失败，仅生成课程表:', e.message);
+    }
     const html = await jwxt.calendar(user, semester);
     start = parseSemesterStart(html, semester);
   }
   const paths = pathsFor(user);
   const { className, calendarName } = calendarLabel(user, items);
-  const events = buildEvents(items, start, semester, paths.calendar, expand);
+  const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
+  const events = [
+    ...buildEvents(items, start, semester, paths.calendar, expand),
+    ...buildExamEvents(exams, semester, paths.calendar, expand, stamp),
+  ].sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   const courses = buildCourses(events, paths.home);
   const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;

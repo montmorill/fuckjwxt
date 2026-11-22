@@ -12,5 +12,11 @@
     { "name": "计算机组成原理", "day": 4, "periods": "5-6", "weeks": "1-16", "location": "2号教学楼(2-203)", "teacher": "郑老师", "className": "软件工程*2026-1-2" },
     { "name": "形势与政策", "day": 5, "periods": "3-4", "weeks": "1-16", "location": "3号教学楼(3-302)", "teacher": "冯老师", "className": "软件工程*2026-1-2" },
     { "name": "软件工程导论", "day": 5, "periods": "7-8", "weeks": "1-16", "location": "3号教学楼(3-303)", "teacher": "陈老师", "className": "软件工程*2026-1-2" }
-  ]
+  ],
+  "exams": {
+    "final": [],
+    "courseEnd": [
+      { "kch": "230011070305", "kc_mc": "高等数学(A)（2-1）", "kssj": "2026-12-01 14:00-15:50", "ksxxsj": "14:00-15:50", "ks_mc": "提前期末考试", "js_mc": "1-408" }
+    ]
+  }
 }
