@@ -12,7 +12,7 @@ export interface TokenStorage {
   delete?(key: string): void | Promise<void>;
 }
 
-export interface QzgwClientOptions {
+export interface QZGWClientOptions {
   baseUrl: string;
   clientId: string;
   clientSecret?: string | null;
@@ -145,21 +145,21 @@ export interface MessageResult {
   data: MessageItem[];
 }
 
-export declare class QzgwError extends Error {
+export declare class QZGWError extends Error {
   status: number;
   error: string;
   description: string;
   constructor(status: number, error: string, description?: string);
 }
 
-export declare class QzgwClient {
+export declare class QZGWClient {
   baseUrl: string;
   clientId: string;
   clientSecret: string | null;
   redirectUri: string | null;
   tokens: TokenSet | null;
 
-  constructor(options: QzgwClientOptions);
+  constructor(options: QZGWClientOptions);
 
   static createPkce(): Promise<PkcePair>;
 
@@ -205,4 +205,4 @@ export declare class QzgwClient {
   notices(): Promise<MessageResult>;
 }
 
-export default QzgwClient;
+export default QZGWClient;

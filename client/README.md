@@ -3,7 +3,7 @@
 零依赖客户端，浏览器和 Node 18+ 都能用（依赖全局 `fetch` / `crypto.subtle`）。
 
 ```js
-import { QzgwClient, QzgwError } from './client/index.mjs';
+import { QZGWClient, QZGWError } from './client/index.mjs';
 ```
 
 ## 1. Client Credentials（服务端/脚本）
@@ -15,7 +15,7 @@ node scripts/admin.mjs add-client --name demo --redirect https://example.com/cb 
 ```
 
 ```js
-const client = new QzgwClient({
+const client = new QZGWClient({
   baseUrl: 'http://localhost:8787',
   clientId: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
@@ -34,13 +34,13 @@ const grades = await client.grades({ semester: '2026-2027-1' });
 服务端注册一个公开客户端（`--public`），并允许它的来源（`CORS_ORIGINS`）。
 
 ```js
-const client = new QzgwClient({
+const client = new QZGWClient({
   baseUrl: 'http://localhost:8787',
   clientId: 'qz_xxx',
   redirectUri: location.origin + '/callback',
 });
 
-const pkce = await QzgwClient.createPkce();
+const pkce = await QZGWClient.createPkce();
 sessionStorage.setItem('pkce', pkce.verifier);
 sessionStorage.setItem('state', crypto.randomUUID());
 
@@ -84,7 +84,7 @@ const storage = {
   set: (key, value) => value ? localStorage.setItem(key, JSON.stringify(value)) : localStorage.removeItem(key),
 };
 
-const client = new QzgwClient({
+const client = new QZGWClient({
   baseUrl: 'http://localhost:8787',
   clientId: 'qz_xxx',
   redirectUri: location.origin + '/callback',
@@ -112,13 +112,13 @@ Node 里可以存到文件/数据库，接口同样是 `get/set`。
 | `notices()` | `GET /api/notices` |
 | `api(path, options)` | 任意受保护路径 |
 
-所有方法返回 API 的 `data` 字段；错误抛 `QzgwError`：
+所有方法返回 API 的 `data` 字段；错误抛 `QZGWError`：
 
 ```js
 try {
   await client.timetable();
 } catch (e) {
-  if (e instanceof QzgwError) {
+  if (e instanceof QZGWError) {
     console.error(e.status, e.error, e.description);
   }
 }

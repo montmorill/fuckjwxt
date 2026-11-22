@@ -1,7 +1,7 @@
 // 客户端端到端测试。
 // 用法：BASE_URL=http://localhost:8787 ADMIN_TOKEN=... node tests/client.mjs
 import { existsSync } from 'node:fs';
-import { QzgwClient, QzgwError } from '../client/index.mjs';
+import { QZGWClient, QZGWError } from '../client/index.mjs';
 
 for (const p of ['.env', '../.env']) {
   if (existsSync(p)) {
@@ -60,7 +60,7 @@ try {
   clientId = created.client_id;
   ok('create client', Boolean(clientId && created.client_secret));
 
-  const client = new QzgwClient({
+  const client = new QZGWClient({
     baseUrl: BASE,
     clientId,
     clientSecret: created.client_secret,
@@ -82,7 +82,7 @@ try {
   ok('grades', grades && typeof grades === 'object' && Array.isArray(grades.data));
 
   // PKCE / authorizationUrl
-  const pkce = await QzgwClient.createPkce();
+  const pkce = await QZGWClient.createPkce();
   ok('createPkce', pkce.verifier.length >= 43 && pkce.challenge.length > 0 && pkce.challenge !== pkce.verifier);
   const authUrl = new URL(client.authorizationUrl({
     scopes: ['jwxt.read', 'offline_access'],
@@ -99,13 +99,13 @@ try {
     && authUrl.searchParams.get('code_challenge_method') === 'S256');
 
   // 错误
-  const bad = new QzgwClient({ baseUrl: BASE, clientId });
+  const bad = new QZGWClient({ baseUrl: BASE, clientId });
   bad.tokens = { accessToken: 'bad', refreshToken: null, expiresAt: Date.now() + 60_000, scope: '' };
   try {
     await bad.me();
     ok('invalid token throws', false);
   } catch (e) {
-    ok('invalid token throws', e instanceof QzgwError && e.status === 401, e.error);
+    ok('invalid token throws', e instanceof QZGWError && e.status === 401, e.error);
   }
 
   // storage 持久化
@@ -115,9 +115,9 @@ try {
     set: (key, value) => store.set(key, value),
     delete: key => store.delete(key),
   };
-  const c2 = new QzgwClient({ baseUrl: BASE, clientId, clientSecret: created.client_secret, storage });
+  const c2 = new QZGWClient({ baseUrl: BASE, clientId, clientSecret: created.client_secret, storage });
   await c2.clientCredentials({ scopes: ['jwxt.read'] });
-  const c3 = new QzgwClient({ baseUrl: BASE, clientId, clientSecret: created.client_secret, storage });
+  const c3 = new QZGWClient({ baseUrl: BASE, clientId, clientSecret: created.client_secret, storage });
   await c3.load();
   ok('storage load', Boolean(c3.tokens?.accessToken));
   const me3 = await c3.me();

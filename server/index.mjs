@@ -659,7 +659,7 @@ server.on('clientError', (err, socket) => {
 });
 
 server.listen(config.port, config.host, () => {
-  console.log(`qzgw listening on ${config.issuer}`);
+  console.log(`QZGW listening on ${config.issuer}`);
   console.log(`db: ${config.dbPath}`);
   console.log(`scopes: ${SCOPES.join(', ')}`);
   console.log(`login: ${config.issuer}/login`);
