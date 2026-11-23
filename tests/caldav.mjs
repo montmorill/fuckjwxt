@@ -197,7 +197,8 @@ try {
   const subText = await sub.text();
   ok('订阅 URL 无需 Basic 返回 ICS', sub.status === 200
     && /text\/calendar/i.test(sub.headers.get('content-type') || '')
-    && subText.includes('BEGIN:VCALENDAR') && subText.includes('BEGIN:VEVENT'));
+    && subText.includes('BEGIN:VCALENDAR') && subText.includes('BEGIN:VEVENT')
+    && !subText.includes('RDATE;TZID='));
 
   const subEtag = sub.headers.get('etag');
   if (subEtag) {

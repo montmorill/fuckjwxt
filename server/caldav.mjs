@@ -315,7 +315,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   };
 }
 
-function buildEvents(items, start, semester, calendarHref, expand) {
+function buildEvents(items, start, semester, calendarHref, expand, compact) {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -342,7 +342,7 @@ function buildEvents(items, start, semester, calendarHref, expand) {
         const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact: true, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact, calendarHref, stamp }));
       }
       continue;
     }
@@ -485,7 +485,7 @@ function loadFixture() {
   return fixtureCache;
 }
 
-async function buildCalendar(user, expand) {
+async function buildCalendar(user, expand, compact = expand) {
   const fixture = process.env.CALDAV_FIXTURE === '1' ? loadFixture() : null;
   const semesters = fixture ? [] : await jwxt.semesters(user);
   const semester = fixture?.semester
@@ -514,8 +514,8 @@ async function buildCalendar(user, expand) {
   const { className, calendarName } = calendarLabel(user, items);
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [
-    ...buildEvents(items, start, semester, paths.calendar, expand),
-    ...buildExamEvents(exams, semester, paths.calendar, expand, stamp),
+    ...buildEvents(items, start, semester, paths.calendar, expand, compact),
+    ...buildExamEvents(exams, semester, paths.calendar, compact, stamp),
   ].sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   const courses = buildCourses(events, paths.home);
   const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
@@ -525,11 +525,11 @@ async function buildCalendar(user, expand) {
   return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
-async function calendarData(user, expand = false) {
-  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'oppo' : 'std'}`;
+async function calendarData(user, expand = false, compact = expand) {
+  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${compact ? 'oppo' : 'std'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
-  const data = await buildCalendar(user, expand);
+  const data = await buildCalendar(user, expand, compact);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -743,7 +743,7 @@ async function handlePropfind(req, res, user, path, url) {
   const expand = expandEventsFor(req);
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind) || (path.kind === 'home' && deep)) {
-    cal = await calendarData(user, expand);
+    cal = await calendarData(user, expand, expand);
   }
   const calendarName = cal?.calendarName || CALENDAR_NAME;
   const course = path.course ? cal?.courses.find(c => c.slug === path.course) : null;
@@ -826,7 +826,8 @@ async function handleReport(req, res, user, path) {
   }
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
-  const cal = await calendarData(user, expandEventsFor(req));
+  const compact = expandEventsFor(req);
+  const cal = await calendarData(user, compact, compact);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
   const events = course ? course.events : cal.events;
@@ -872,7 +873,8 @@ async function handleReport(req, res, user, path) {
 
 async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
-  const cal = await calendarData(user, expandEventsFor(req));
+  const compact = expandEventsFor(req);
+  const cal = await calendarData(user, compact, compact);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
 
@@ -895,7 +897,10 @@ async function handleGet(req, res, user, path) {
 }
 
 async function sendFeed(req, res, user) {
-  const cal = await calendarData(user, expandEventsFor(req));
+  // .ics 订阅统一按每次上课展开：部分安卓日历只认第一个 DTSTART，
+  // 不展开 RDATE，会导致后面的课“消失”。
+  const compact = expandEventsFor(req);
+  const cal = await calendarData(user, true, compact);
   const head = req.method === 'HEAD';
   if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
   return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
