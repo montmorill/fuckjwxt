@@ -11,7 +11,7 @@ import { encrypt, hashToken, hashPassword, randomToken, safeEqual } from './cryp
 import * as oauth from './oauth.mjs';
 import { handlers as apiHandlers, ApiError } from './api.mjs';
 import { verifyCredentials, clearSession, clearAllSessions } from './jwxt-service.mjs';
-import { handleCalDav, clearCache as clearCalDavCache } from './caldav.mjs';
+import { handleCalDav, clearCache as clearCalDavCache, warmCalendar } from './caldav.mjs';
 import { renderDocsPage, oauth2RedirectHtml, oauth2RedirectJs } from './docs.mjs';
 import {
   getSessionFromRequest, getSessionUser, createAnonymousSession, rotateSession, destroySession,
@@ -250,6 +250,7 @@ add('GET', '/', async ({ req, res }) => {
     newToken: flash.newToken || null,
     error: flash.error || '',
   }));
+  void warmCalendar(current.user);
 }, { skipOpenApi: true });
 
 add('GET', '/account', async ({ res }) => redirect(res, '/'), { skipOpenApi: true });
@@ -268,6 +269,7 @@ add('POST', '/account/caldav-tokens', async ({ req, res }) => {
   const url = `${config.issuer}/caldav/feed/${encodeURIComponent(current.user.account)}/${encodeURIComponent(token)}.ics`;
   setAccountFlash(current.session, { newToken: { label: label || '未命名', url, token } });
   redirect(res, '/', 303);
+  void warmCalendar(current.user);
 }, { skipOpenApi: true });
 
 add('POST', '/account/caldav-tokens/:tokenId/delete', async ({ req, res, params }) => {

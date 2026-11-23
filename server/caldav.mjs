@@ -93,11 +93,18 @@ function fold(line) {
   return out.join('\r\n');
 }
 
-const cache = new Map(); // `${userId}:${semester}` -> { at, data }
+const cache = new Map(); // `${userId}:...` -> { at, data }
+const inflight = new Map(); // 同 key 的构建请求合并，避免并发重复拉取
+const warmAttempts = new Map(); // userId -> 上次预热时间，失败后避免频繁重试
 export function clearCache(userId) {
-  if (userId === undefined || userId === null) { cache.clear(); return; }
+  if (userId === undefined || userId === null) {
+    cache.clear();
+    warmAttempts.clear();
+    return;
+  }
   const prefix = `${userId}:`;
   for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
+  warmAttempts.delete(userId);
 }
 
 // ---------- 认证 ----------
@@ -525,9 +532,26 @@ async function calendarData(user, expand = false, compact = expand) {
   const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${compact ? 'oppo' : 'std'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
-  const data = await buildCalendar(user, expand, compact);
-  cache.set(key, { at: Date.now(), data });
-  return data;
+  if (inflight.has(key)) return inflight.get(key);
+  const pending = buildCalendar(user, expand, compact)
+    .then(data => {
+      cache.set(key, { at: Date.now(), data });
+      return data;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, pending);
+  return pending;
+}
+
+// 账号页/token 生成后后台预热 .ics feed 使用的展开模式；失败只记日志，
+// 不写入旧数据，后续真实请求仍会正常报错。
+export function warmCalendar(user) {
+  const last = warmAttempts.get(user.id) || 0;
+  if (Date.now() - last < 60_000) return Promise.resolve();
+  warmAttempts.set(user.id, Date.now());
+  return calendarData(user, true, false).catch(e => {
+    console.warn('[caldav] 缓存预热失败:', e.message);
+  });
 }
 
 // ---------- XML ----------
