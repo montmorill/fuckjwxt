@@ -15,6 +15,7 @@
     "hooks": "git config core.hooksPath .githooks",
     "test:oauth": "node --no-warnings tests/oauth.mjs",
     "test:caldav": "node --no-warnings tests/caldav.mjs",
+    "test:provision": "node --no-warnings tests/provision.mjs",
     "test:client": "node --no-warnings tests/client.mjs"
   }
 }

@@ -12,6 +12,7 @@ import * as oauth from './oauth.mjs';
 import { handlers as apiHandlers, ApiError } from './api.mjs';
 import { verifyCredentials, clearSession, clearAllSessions } from './jwxt-service.mjs';
 import { handleCalDav, clearCache as clearCalDavCache, warmCalendar } from './caldav.mjs';
+import { provisionUser } from './provision.mjs';
 import { renderDocsPage, oauth2RedirectHtml, oauth2RedirectJs } from './docs.mjs';
 import {
   getSessionFromRequest, getSessionUser, createAnonymousSession, rotateSession, destroySession,
@@ -215,7 +216,9 @@ add('POST', '/login', async ({ req, res }) => {
     return sendHtml(res, 429, renderLoginPage({ csrf: session.csrf_token, next, account, error: '尝试过于频繁，请稍后再试' }));
   }
 
-  const user = getUserByAccount(account);
+  // 未注册学号：先校验教务密码，通过则自动建号（可用 AUTO_PROVISION=0 关闭）
+  let user = getUserByAccount(account);
+  if (!user) user = await provisionUser(account, form.password);
   if (!user || user.disabled || !(await verifyUserPassword(user, form.password))) {
     recordLoginFailure(ip, account);
     return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, account, error: '学号或密码错误' }));

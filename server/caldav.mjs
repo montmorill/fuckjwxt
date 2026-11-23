@@ -8,6 +8,7 @@ import { hashToken, safeEqual, decrypt } from './crypto.mjs';
 import * as db from './db.mjs';
 import { authenticateBearer } from './oauth.mjs';
 import { jwxt } from './jwxt-service.mjs';
+import { provisionUser } from './provision.mjs';
 
 const CALENDAR_NAME = '课程表';
 const CALENDAR_TIMEZONE = 'Asia/Shanghai';
@@ -132,7 +133,8 @@ async function authenticate(req) {
     const account = idx >= 0 ? decoded.slice(0, idx) : '';
     const password = idx >= 0 ? decoded.slice(idx + 1) : '';
 
-    const user = db.getUserByAccount(account);
+    let user = db.getUserByAccount(account);
+    if (!user) user = await provisionUser(account, password);
     if (!user || user.disabled || !verifyCalDavPassword(user, password)) {
       return { error: [401, 'CalDAV 学号或密码错误'], scheme: 'Basic' };
     }
@@ -939,7 +941,8 @@ async function handleFeed(req, res, token) {
 }
 
 async function handleFeedUser(req, res, account, password) {
-  const user = db.getUserByAccount(account);
+  let user = db.getUserByAccount(account);
+  if (!user) user = await provisionUser(account, password);
   if (!user || user.disabled || !verifyCalDavPassword(user, password)) {
     return sendText(res, 401, '订阅账号或密码错误');
   }

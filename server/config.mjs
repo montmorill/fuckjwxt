@@ -60,6 +60,8 @@ export const config = {
   // CalDAV（只读课程表）
   // 学期/开学日期/作息不再走 env：学期按用户，开学日期从教学周历解析，作息在 config/period-times.json
   caldavCacheMs: Number(process.env.CALDAV_CACHE_MS || 300000),     // 5 分钟
+  // 未注册账号首次用 CalDAV / .ics 订阅 / 网页登录认证时，校验教务密码通过后自动建号；0/false/no/off 关闭
+  autoProvision: !/^(0|false|no|off)$/i.test(String(process.env.AUTO_PROVISION ?? '1').trim()),
 };
 
 export const SCOPES = ['jwxt.read', 'jwxt.profile', 'offline_access'];

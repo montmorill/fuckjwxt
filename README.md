@@ -39,7 +39,7 @@ node scripts/admin.mjs add-user --account <学号> --password <教务密码> --s
 npm start
 ```
 
-- 服务端不再从 `.env` 导入用户；所有用户通过 CLI 或 `POST /admin/users` 创建。
+- 服务端不再从 `.env` 导入用户；用户通过 CLI 或 `POST /admin/users` 创建。未注册学号首次用教务密码登录网页或连接 CalDAV / `.ics` 订阅时会自动建号，见 [`docs/CALDAV.md`](docs/CALDAV.md)。
 - 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
 - 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
