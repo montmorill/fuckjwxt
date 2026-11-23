@@ -236,8 +236,8 @@ function parseSemesterStart(html, semester) {
 }
 
 // ---------- ICS ----------
-function vcalendar(eventLineArrays, name, { compact = false } = {}) {
-  const lines = compact
+function vcalendar(eventLineArrays, name, { escape = false } = {}) {
+  const lines = escape
     ? [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -251,7 +251,7 @@ function vcalendar(eventLineArrays, name, { compact = false } = {}) {
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//qzgw//CN',
-      `X-WR-CALNAME:${(compact ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
+      `X-WR-CALNAME:${(escape ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
       ...eventLineArrays.flat(),
@@ -271,15 +271,15 @@ function calendarLabel(user, items) {
   return { className, calendarName: `${className || user.account} 课程表` };
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, compact, calendarHref, stamp }) {
-  const esc = compact ? icsEscapeOppo : icsEscapeRfc;
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, escape, calendarHref, stamp }) {
+  const esc = escape ? icsEscapeOppo : icsEscapeRfc;
   const splitList = value => String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
-  const categoryParts = (compact
+  const categoryParts = (escape
     ? ['课程表', ...splitList(item.className), ...splitList(item.teacher)]
     : ['课程表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
   ).filter(Boolean);
   const categories = categoryParts.map(esc).join(',');
-  const eventLines = compact
+  const eventLines = escape
     ? [
       'BEGIN:VEVENT',
       `UID:${hash}@qzgw`,
@@ -308,7 +308,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'END:VEVENT',
     ].filter(Boolean);
 
-  const ics = vcalendar([eventLines], item.name, { compact });
+  const ics = vcalendar([eventLines], item.name, { escape });
   return {
     hash,
     uid: `${hash}@qzgw`,
@@ -322,7 +322,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   };
 }
 
-function buildEvents(items, start, semester, calendarHref, expand, compact) {
+function buildEvents(items, start, semester, calendarHref, expand, escape) {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -349,7 +349,7 @@ function buildEvents(items, start, semester, calendarHref, expand, compact) {
         const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, compact, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, escape, calendarHref, stamp }));
       }
       continue;
     }
@@ -363,7 +363,7 @@ function buildEvents(items, start, semester, calendarHref, expand, compact) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, compact: false, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, escape: false, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
@@ -398,8 +398,8 @@ function nextDay({ y, m, d }) {
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
 }
 
-function buildExamEvents(exams, semester, calendarHref, compact, stamp) {
-  const esc = compact ? icsEscapeOppo : icsEscapeRfc;
+function buildExamEvents(exams, semester, calendarHref, escape, stamp) {
+  const esc = escape ? icsEscapeOppo : icsEscapeRfc;
   const events = [];
   const seen = new Set();
   const sources = [
@@ -441,11 +441,11 @@ function buildExamEvents(exams, semester, calendarHref, compact, stamp) {
         `SUMMARY:${esc(title)}`,
         location ? `LOCATION:${esc(location)}` : '',
         proctor ? `DESCRIPTION:${esc(`监考：${proctor}`)}` : '',
-        compact ? '' : `COLOR:${EXAM_COLOR}`,
+        escape ? '' : `COLOR:${EXAM_COLOR}`,
         `CATEGORIES:${categories}`,
         'END:VEVENT',
       ].filter(Boolean);
-      const ics = vcalendar([eventLines], title, { compact });
+      const ics = vcalendar([eventLines], title, { escape });
       events.push({
         hash,
         uid: `${hash}@qzgw`,
@@ -492,7 +492,7 @@ function loadFixture() {
   return fixtureCache;
 }
 
-async function buildCalendar(user, expand, compact = expand) {
+async function buildCalendar(user, expand, escape = expand) {
   const fixture = process.env.CALDAV_FIXTURE === '1' ? loadFixture() : null;
   const semesters = fixture ? [] : await jwxt.semesters(user);
   const semester = fixture?.semester
@@ -517,8 +517,8 @@ async function buildCalendar(user, expand, compact = expand) {
   const { className, calendarName } = calendarLabel(user, items);
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [
-    ...buildEvents(items, start, semester, paths.calendar, expand, compact),
-    ...buildExamEvents(exams, semester, paths.calendar, compact, stamp),
+    ...buildEvents(items, start, semester, paths.calendar, expand, escape),
+    ...buildExamEvents(exams, semester, paths.calendar, escape, stamp),
   ].sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
   const courses = buildCourses(events, paths.home);
   const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
@@ -528,12 +528,12 @@ async function buildCalendar(user, expand, compact = expand) {
   return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
-async function calendarData(user, expand = false, compact = expand) {
-  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${compact ? 'oppo' : 'std'}`;
+async function calendarData(user, expand = false, escape = expand) {
+  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${escape ? 'oppo' : 'std'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
   if (inflight.has(key)) return inflight.get(key);
-  const pending = buildCalendar(user, expand, compact)
+  const pending = buildCalendar(user, expand, escape)
     .then(data => {
       cache.set(key, { at: Date.now(), data });
       return data;
@@ -846,8 +846,8 @@ async function handleReport(req, res, user, path) {
   }
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
-  const compact = expandEventsFor(req);
-  const cal = await calendarData(user, compact, compact);
+  const escape = expandEventsFor(req);
+  const cal = await calendarData(user, escape, escape);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
   const events = course ? course.events : cal.events;
@@ -893,8 +893,8 @@ async function handleReport(req, res, user, path) {
 
 async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
-  const compact = expandEventsFor(req);
-  const cal = await calendarData(user, compact, compact);
+  const escape = expandEventsFor(req);
+  const cal = await calendarData(user, escape, escape);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
 
@@ -919,8 +919,8 @@ async function handleGet(req, res, user, path) {
 async function sendFeed(req, res, user) {
   // .ics 订阅统一按每次上课展开：部分安卓日历只认第一个 DTSTART，
   // 不展开 RDATE，会导致后面的课“消失”。
-  const compact = expandEventsFor(req);
-  const cal = await calendarData(user, true, compact);
+  const escape = expandEventsFor(req);
+  const cal = await calendarData(user, true, escape);
   const head = req.method === 'HEAD';
   if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
   return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
