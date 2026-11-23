@@ -501,14 +501,10 @@ async function buildCalendar(user, expand, compact = expand) {
     exams = fixture.exams || exams;
     start = fixture.start;
   } else {
-    items = await jwxt.timetable(user, { semester });
-    try {
-      exams = await jwxt.exams(user, { semester });
-    } catch (e) {
-      console.warn('[caldav] 考试安排获取失败，仅生成课程表:', e.message);
-    }
-    const html = await jwxt.calendar(user, semester);
-    start = parseSemesterStart(html, semester);
+    const bundle = await jwxt.calendarBundle(user, semester);
+    items = bundle.items;
+    exams = bundle.exams;
+    start = parseSemesterStart(bundle.html, semester);
   }
   const paths = pathsFor(user);
   const { className, calendarName } = calendarLabel(user, items);

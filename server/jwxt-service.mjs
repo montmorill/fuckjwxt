@@ -84,6 +84,19 @@ export const jwxt = {
     if (!/第1周/.test(html)) throw new Error('教学周历无效（可能会话过期）');
     return html;
   }),
+  // 课表、考试、教学周历共用一次登录会话并发拉取；考试失败时降级为只返回课表。
+  calendarBundle: (user, semester) => withSession(user, async s => {
+    const [items, exams, html] = await Promise.all([
+      getTimetable(s, { semester }),
+      getExams(s, { semester }).catch(e => {
+        console.warn('[jwxt] 考试安排获取失败，仅生成课程表:', e.message);
+        return { final: [], courseEnd: [] };
+      }),
+      getCalendar(s, semester),
+    ]);
+    if (!/第1周/.test(html)) throw new Error('教学周历无效（可能会话过期）');
+    return { items, exams, html };
+  }),
   grades: (user, opts) => withSession(user, s => getGrades(s, opts)),
   exams: (user, opts) => withSession(user, s => getExams(s, opts)),
   textbooks: user => withSession(user, s => getTextbooks(s)),
