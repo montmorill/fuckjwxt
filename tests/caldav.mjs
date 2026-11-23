@@ -103,10 +103,10 @@ try {
   const home = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>');
   ok('PROPFIND 标准首页列出 timetable', home.status === 207 && home.text.includes('timetable/'));
 
-  const oppoHome = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>', { 'User-Agent': 'OPPO-Calendar' });
-  ok('PROPFIND OPPO 首页列出课程日历', oppoHome.status === 207 && oppoHome.text.includes('course-'));
+  const expandedHome = await propfind(homeHref, 1, '<D:resourcetype/><D:displayname/>', { 'User-Agent': 'OPPO-Calendar' });
+  ok('PROPFIND 展开模式首页列出课程日历', expandedHome.status === 207 && expandedHome.text.includes('course-'));
 
-  const courseHref = oppoHome.text.match(/<D:href>([^<]*course-[^<]*)<\/D:href>/)?.[1];
+  const courseHref = expandedHome.text.match(/<D:href>([^<]*course-[^<]*)<\/D:href>/)?.[1];
   const courseCal = courseHref
     ? await propfind(courseHref, 0, '<D:resourcetype/><D:displayname/><A:calendar-color xmlns:A="http://apple.com/ns/ical/"/>', { 'User-Agent': 'OPPO-Calendar' })
     : { status: 0, text: '' };
@@ -144,7 +144,7 @@ try {
     && syncCount > 0 && sync.text.includes('<D:sync-token>')
     && sync.text.includes('RDATE;TZID=Asia/Shanghai:'));
 
-  const oppoSync = await req(calHref, {
+  const expandedSync = await req(calHref, {
     method: 'REPORT',
     headers: {
       Depth: '1',
@@ -153,9 +153,9 @@ try {
     },
     body: `<?xml version="1.0" encoding="utf-8"?><sync-collection xmlns="DAV:"><sync-token/><sync-level>1</sync-level><prop><getetag/><calendar-data xmlns="urn:ietf:params:xml:ns:caldav"/></prop></sync-collection>`,
   });
-  const oppoCount = (oppoSync.text.match(/BEGIN:VEVENT/g) || []).length;
-  ok('OPPO sync-collection 返回独立 VEVENT', oppoSync.status === 207
-    && oppoCount > syncCount && !oppoSync.text.includes('RDATE:'), `events=${oppoCount}`);
+  const expandedCount = (expandedSync.text.match(/BEGIN:VEVENT/g) || []).length;
+  ok('展开模式 sync-collection 返回独立 VEVENT', expandedSync.status === 207
+    && expandedCount > syncCount && !expandedSync.text.includes('RDATE:'), `events=${expandedCount}`);
 
   const eventHref = report.text.match(/<D:href>([^<]+\.ics)<\/D:href>/i)?.[1];
   const multiget = eventHref

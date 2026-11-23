@@ -54,20 +54,20 @@ const pad = n => String(n).padStart(2, '0');
 const sha1 = s => createHash('sha1').update(String(s)).digest('hex');
 const sha256 = s => createHash('sha256').update(String(s)).digest('hex');
 
-// OPPO 日历不展开 RDATE，给它每个上课日生成独立 VEVENT。
+// 部分客户端不展开 RDATE，给它每个上课日生成独立 VEVENT。
 const expandEventsFor = req => /OPPO/i.test(String(req.headers['user-agent'] || ''));
 
 const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-// 普通客户端按 RFC 转义，保留英文逗号；OPPO 不还原转义，改用全角标点。
+// 普通客户端按 RFC 转义，保留英文逗号；部分客户端不还原转义，改用全角标点。
 const icsEscapeRfc = s => String(s)
   .replace(/\\/g, '\\\\')
   .replace(/;/g, '\\;')
   .replace(/,/g, '\\,')
   .replace(/\r?\n/g, '\\n');
-const icsEscapeOppo = s => String(s)
+const icsEscapeRelaxed = s => String(s)
   .replace(/,/g, '、')
   .replace(/;/g, '；')
   .replace(/\r?\n/g, ' ')
@@ -236,12 +236,13 @@ function parseSemesterStart(html, semester) {
 }
 
 // ---------- ICS ----------
-function vcalendar(eventLineArrays, name, { escape = false } = {}) {
+function vcalendar(eventLineArrays, name, { escape = true } = {}) {
   const lines = escape
     ? [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//qzgw//CN',
+      `X-WR-CALNAME:${icsEscapeRfc(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
       ...eventLineArrays.flat(),
@@ -251,7 +252,6 @@ function vcalendar(eventLineArrays, name, { escape = false } = {}) {
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//qzgw//CN',
-      `X-WR-CALNAME:${(escape ? icsEscapeOppo : icsEscapeRfc)(name || CALENDAR_NAME)}`,
       `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
       ...CALENDAR_TIMEZONE_LINES,
       ...eventLineArrays.flat(),
@@ -272,28 +272,15 @@ function calendarLabel(user, items) {
 }
 
 function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, escape, calendarHref, stamp }) {
-  const esc = escape ? icsEscapeOppo : icsEscapeRfc;
+  const esc = escape ? icsEscapeRfc : icsEscapeRelaxed;
   const splitList = value => String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
   const categoryParts = (escape
-    ? ['课程表', ...splitList(item.className), ...splitList(item.teacher)]
-    : ['课程表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
+    ? ['课程表', ...splitList(item.className), item.name, ...splitList(item.teacher)]
+    : ['课程表', ...splitList(item.className), ...splitList(item.teacher)]
   ).filter(Boolean);
   const categories = categoryParts.map(esc).join(',');
   const eventLines = escape
     ? [
-      'BEGIN:VEVENT',
-      `UID:${hash}@qzgw`,
-      `DTSTAMP:${stamp}`,
-      'SEQUENCE:3',
-      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
-      `SUMMARY:${esc(item.name)}`,
-      item.location ? `LOCATION:${esc(item.location)}` : '',
-      description ? `DESCRIPTION:${esc(description)}` : '',
-      `CATEGORIES:${categories}`,
-      'END:VEVENT',
-    ]
-    : [
       'BEGIN:VEVENT',
       `UID:${hash}@qzgw`,
       `DTSTAMP:${stamp}`,
@@ -304,6 +291,19 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       item.location ? `LOCATION:${esc(item.location)}` : '',
       description ? `DESCRIPTION:${esc(description)}` : '',
       `COLOR:${color || COURSE_COLORS[0]}`,
+      `CATEGORIES:${categories}`,
+      'END:VEVENT',
+    ]
+    : [
+      'BEGIN:VEVENT',
+      `UID:${hash}@qzgw`,
+      `DTSTAMP:${stamp}`,
+      'SEQUENCE:3',
+      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
+      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+      `SUMMARY:${esc(item.name)}`,
+      item.location ? `LOCATION:${esc(item.location)}` : '',
+      description ? `DESCRIPTION:${esc(description)}` : '',
       `CATEGORIES:${categories}`,
       'END:VEVENT',
     ].filter(Boolean);
@@ -343,7 +343,7 @@ function buildEvents(items, start, semester, calendarHref, expand, escape) {
     const courseKey = item.courseCode || item.name;
 
     if (expand) {
-      // OPPO 等客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
+      // 部分客户端对 RDATE 展开支持不好：每个上课日生成独立 VEVENT。
       for (const week of weeks) {
         const day = dateFor(start, week, item.day);
         const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
@@ -363,7 +363,7 @@ function buildEvents(items, start, semester, calendarHref, expand, escape) {
       const d = dateFor(start, week, item.day);
       return localStamp(d.y, d.m, d.d, sh, sm);
     });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, escape: false, calendarHref, stamp }));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, escape: true, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
@@ -399,7 +399,7 @@ function nextDay({ y, m, d }) {
 }
 
 function buildExamEvents(exams, semester, calendarHref, escape, stamp) {
-  const esc = escape ? icsEscapeOppo : icsEscapeRfc;
+  const esc = escape ? icsEscapeRfc : icsEscapeRelaxed;
   const events = [];
   const seen = new Set();
   const sources = [
@@ -441,7 +441,7 @@ function buildExamEvents(exams, semester, calendarHref, escape, stamp) {
         `SUMMARY:${esc(title)}`,
         location ? `LOCATION:${esc(location)}` : '',
         proctor ? `DESCRIPTION:${esc(`监考：${proctor}`)}` : '',
-        escape ? '' : `COLOR:${EXAM_COLOR}`,
+        escape ? `COLOR:${EXAM_COLOR}` : '',
         `CATEGORIES:${categories}`,
         'END:VEVENT',
       ].filter(Boolean);
@@ -492,7 +492,7 @@ function loadFixture() {
   return fixtureCache;
 }
 
-async function buildCalendar(user, expand, escape = expand) {
+async function buildCalendar(user, expand, escape = !expand) {
   const fixture = process.env.CALDAV_FIXTURE === '1' ? loadFixture() : null;
   const semesters = fixture ? [] : await jwxt.semesters(user);
   const semester = fixture?.semester
@@ -528,8 +528,8 @@ async function buildCalendar(user, expand, escape = expand) {
   return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
-async function calendarData(user, expand = false, escape = expand) {
-  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${escape ? 'oppo' : 'std'}`;
+async function calendarData(user, expand = false, escape = !expand) {
+  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${escape ? 'rfc' : 'relaxed'}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
   if (inflight.has(key)) return inflight.get(key);
@@ -549,7 +549,7 @@ export function warmCalendar(user) {
   const last = warmAttempts.get(user.id) || 0;
   if (Date.now() - last < 60_000) return Promise.resolve();
   warmAttempts.set(user.id, Date.now());
-  return calendarData(user, true, false).catch(e => {
+  return calendarData(user, true, true).catch(e => {
     console.warn('[caldav] 缓存预热失败:', e.message);
   });
 }
@@ -763,7 +763,7 @@ async function handlePropfind(req, res, user, path, url) {
   const expand = expandEventsFor(req);
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind) || (path.kind === 'home' && deep)) {
-    cal = await calendarData(user, expand, expand);
+    cal = await calendarData(user, expand, !expand);
   }
   const calendarName = cal?.calendarName || CALENDAR_NAME;
   const course = path.course ? cal?.courses.find(c => c.slug === path.course) : null;
@@ -788,7 +788,7 @@ async function handlePropfind(req, res, user, path, url) {
       add(paths.home, { kind: 'home', displayname: '日历' });
       if (deep) {
         if (expand) {
-          // OPPO：每门课一个日历，单次同步数据量更小
+          // 展开模式：每门课一个日历，单次同步数据量更小
           for (const c of cal?.courses || []) {
             add(`${paths.home}course-${c.slug}/`, {
               kind: 'calendar',
@@ -846,8 +846,8 @@ async function handleReport(req, res, user, path) {
   }
   const body = await readBody(req);
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
-  const escape = expandEventsFor(req);
-  const cal = await calendarData(user, escape, escape);
+  const expand = expandEventsFor(req);
+  const cal = await calendarData(user, expand, !expand);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
   const events = course ? course.events : cal.events;
@@ -893,8 +893,8 @@ async function handleReport(req, res, user, path) {
 
 async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
-  const escape = expandEventsFor(req);
-  const cal = await calendarData(user, escape, escape);
+  const expand = expandEventsFor(req);
+  const cal = await calendarData(user, expand, !expand);
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
 
@@ -919,8 +919,8 @@ async function handleGet(req, res, user, path) {
 async function sendFeed(req, res, user) {
   // .ics 订阅统一按每次上课展开：部分安卓日历只认第一个 DTSTART，
   // 不展开 RDATE，会导致后面的课“消失”。
-  const escape = expandEventsFor(req);
-  const cal = await calendarData(user, true, escape);
+  const perDay = expandEventsFor(req);
+  const cal = await calendarData(user, true, !perDay);
   const head = req.method === 'HEAD';
   if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
   return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);
@@ -957,7 +957,7 @@ export async function handleCalDav(req, res, url) {
     const debugPath = url.pathname.startsWith('/caldav/feed/')
       ? '/caldav/feed/<redacted>.ics'
       : url.pathname;
-    console.log(`[caldav] OPPO ${method} ${debugPath} accept-encoding=${req.headers['accept-encoding'] || '-'}`);
+    console.log(`[caldav] perday ${method} ${debugPath} accept-encoding=${req.headers['accept-encoding'] || '-'}`);
   }
 
   if (method === 'OPTIONS') return handleOptions(res);
