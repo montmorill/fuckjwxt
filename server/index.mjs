@@ -128,12 +128,25 @@ setInterval(() => {
 }, 60_000).unref();
 
 function rateLimit(req, limit = config.adminRateLimit) {
-  const ip = req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
   const t = Date.now();
   let e = hits.get(ip);
   if (!e || e.reset < t) { e = { count: 0, reset: t + 60_000 }; hits.set(ip, e); }
   e.count++;
   if (e.count > limit) throw new HttpError(429, 'rate_limited', 'too many requests');
+}
+
+// 反代（nginx 在本机）后面优先读 X-Real-IP / X-Forwarded-For；
+// 直接对外监听时 socket 对端不是本机，不信任客户端自带的转发头。
+const LOOPBACK = /^(::1|::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3})$/;
+
+function clientIp(req) {
+  const sock = req.socket.remoteAddress || '';
+  if (!LOOPBACK.test(sock)) return sock || 'unknown';
+  const real = String(req.headers['x-real-ip'] || '').trim();
+  if (real) return real;
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || sock || 'unknown';
 }
 
 function requireAdmin(req) {
@@ -196,7 +209,7 @@ add('POST', '/login', async ({ req, res }) => {
     return sendHtml(res, 400, renderLoginPage({ csrf: session?.csrf_token || '', next, error: '会话已过期，请重试' }));
   }
 
-  const ip = req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
   const account = String(form.account || '').trim();
   if (!loginAllowed(ip, account)) {
     return sendHtml(res, 429, renderLoginPage({ csrf: session.csrf_token, next, account, error: '尝试过于频繁，请稍后再试' }));
