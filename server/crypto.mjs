@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 import { config } from './config.mjs';
 
 const KEY = config.masterKey;
@@ -37,18 +38,20 @@ export function safeEqual(a, b) {
 export const now = () => Math.floor(Date.now() / 1000);
 
 // 服务登录密码（与教务密码无关）使用 scrypt
-export function hashPassword(password) {
+const scryptAsync = promisify(scrypt);
+
+export async function hashPassword(password) {
   const salt = randomBytes(16);
-  const hash = scryptSync(String(password), salt, 64);
+  const hash = await scryptAsync(String(password), salt, 64);
   return `scrypt$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
-export function verifyPassword(password, stored) {
+export async function verifyPassword(password, stored) {
   if (!stored) return false;
   const [scheme, saltB64, hashB64] = String(stored).split('$');
   if (scheme !== 'scrypt' || !saltB64 || !hashB64) return false;
   const salt = Buffer.from(saltB64, 'base64');
   const expected = Buffer.from(hashB64, 'base64');
-  const actual = scryptSync(String(password), salt, expected.length);
+  const actual = await scryptAsync(String(password), salt, expected.length);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }

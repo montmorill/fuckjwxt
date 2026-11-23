@@ -146,9 +146,9 @@ const pageStyle = `
 `;
 
 // 登录密码：优先校验服务密码；用户未设置服务密码时回退到教务密码。
-export function verifyUserPassword(user, password) {
+export async function verifyUserPassword(user, password) {
   const pwd = String(password || '');
-  if (verifyPassword(pwd, user.service_password_hash)) return true;
+  if (await verifyPassword(pwd, user.service_password_hash)) return true;
   if (!user.service_password_hash && user.password_enc) {
     try { return safeEqual(decrypt(user.password_enc), pwd); } catch { return false; }
   }

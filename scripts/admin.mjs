@@ -62,7 +62,7 @@ switch (cmd) {
       account,
       passwordEnc: encrypt(password),
       baseUrl,
-      servicePasswordHash: servicePassword ? hashPassword(String(servicePassword)) : null,
+      servicePasswordHash: servicePassword ? await hashPassword(String(servicePassword)) : null,
       caldavSemester,
     });
     console.log(JSON.stringify({
@@ -110,7 +110,7 @@ switch (cmd) {
       if (!args['service-password']) servicePasswordHash = null;
       else {
         if (String(args['service-password']).length < 8) throw new Error('--service-password 至少 8 位');
-        servicePasswordHash = hashPassword(String(args['service-password']));
+        servicePasswordHash = await hashPassword(String(args['service-password']));
       }
     }
 

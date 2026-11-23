@@ -203,7 +203,7 @@ add('POST', '/login', async ({ req, res }) => {
   }
 
   const user = getUserByAccount(account);
-  if (!user || user.disabled || !verifyUserPassword(user, form.password)) {
+  if (!user || user.disabled || !(await verifyUserPassword(user, form.password))) {
     recordLoginFailure(ip, account);
     return sendHtml(res, 401, renderLoginPage({ csrf: session.csrf_token, next, account, error: '学号或密码错误' }));
   }
@@ -426,7 +426,7 @@ add('POST', '/admin/users', async ({ req }) => {
     account,
     passwordEnc: encrypt(password),
     baseUrl,
-    servicePasswordHash: servicePassword ? hashPassword(servicePassword) : null,
+    servicePasswordHash: servicePassword ? await hashPassword(servicePassword) : null,
     caldavSemester,
   });
   return safeUser(user);
@@ -473,7 +473,7 @@ add('PUT', '/admin/users/:userId', async ({ req, params }) => {
     } else {
       const sp = String(body.servicePassword);
       if (sp.length < 8) throw new HttpError(400, 'invalid_request', 'servicePassword must be at least 8 chars');
-      servicePasswordHash = hashPassword(sp);
+      servicePasswordHash = await hashPassword(sp);
     }
     revokeSessions = true;
   }
