@@ -118,7 +118,7 @@ https://<host>:8787/caldav/feed/<学号>/<密码>.ics
   ```
 
 - 日历显示名使用“班级 课程表”，没有班级时用“学号 课程表”。
-- 时间使用 `TZID=Asia/Shanghai` 写入北京时间，不再写 UTC；事件备注只保留教师，单行显示，避免换行/转义问题。
+- 事件时间默认用 `TZID=Asia/Shanghai` 写入北京时间并附 `VTIMEZONE`；Honor 自带日历的 CalDAV 适配器（UA 含 `Honor CalDAV Sync Adapter`）解析不了 `VTIMEZONE`、会把墙钟时间当 UTC，对它单独改写为 UTC（`...Z`）。事件备注只保留教师，单行显示，避免换行/转义问题。
 - 每个事件带 `COLOR:#RRGGBB`，按课程名稳定分配颜色；是否显示取决于客户端，部分客户端只支持日历级颜色。
 
 ## 认证
@@ -149,7 +149,7 @@ ETag 基于生成内容；`If-None-Match` 支持 304。
 - 一次只暴露一个学期（用户固定的 `caldavSemester`，否则当前学期）。
 - `calendar-query` 的时间范围过滤未实现：按时间范围查询也会拿到整学期事件。
 - 不支持 `sync-collection`；客户端会回退到 `calendar-query`。
-- 时区固定 `Asia/Shanghai`，客户端按北京时间显示。
+- 时区默认 `Asia/Shanghai`（`TZID`），客户端按北京时间显示；Honor 自带日历改为 UTC 时间。
 - 数据缓存 5 分钟（`CALDAV_CACHE_MS`），缓存按用户隔离；改账号/学期后清缓存或等待过期。
 
 ## 测试

@@ -58,6 +58,10 @@ const sha256 = s => createHash('sha256').update(String(s)).digest('hex');
 // 部分客户端不展开 RDATE，给它每个上课日生成独立 VEVENT。
 const expandEventsFor = req => /OPPO/i.test(String(req.headers['user-agent'] || ''));
 const formatFor = req => expandEventsFor(req) ? 'compat' : 'rfc';
+// Honor 自带日历的 CalDAV 适配器解析不了我们写的最小 VTIMEZONE，会把 TZID
+// 墙钟时间当成 UTC 再 +8；对它直接写 UTC（...Z），其余客户端保持 TZID。
+const utcTimeFor = req => /Honor.*CalDAV Sync Adapter/i.test(String(req.headers['user-agent'] || ''));
+const timeModeFor = req => utcTimeFor(req) ? 'utc' : 'tzid';
 
 const xmlEscape = s => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -211,9 +215,18 @@ function utcStamp(y, m, d, hh = '00', mm = '00') {
   return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}${pad(dt.getUTCSeconds())}Z`;
 }
 
-// 带 TZID 的本地时间，不再写 UTC
+// 本地墙钟时间（北京时间），不带时区标记；是否加 TZID 由 timeProp 决定
 function localStamp(y, m, d, hh = '00', mm = '00') {
   return `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+}
+
+// 按客户端的 timeMode 生成 DTSTART/DTEND/RDATE 行：
+//   tzid → 带 TZID 的墙钟时间（默认，OPPO/Apple/Google 等验证过的写法）
+//   utc  → UTC 绝对时间（Honor CalDAV 适配器不认 TZID/VTIMEZONE）
+function timeProp(prop, y, m, d, hh, mm, timeMode) {
+  return timeMode === 'utc'
+    ? `${prop}:${utcStamp(y, m, d, hh, mm)}`
+    : `${prop};TZID=${CALENDAR_TIMEZONE}:${localStamp(y, m, d, hh, mm)}`;
 }
 
 function parseSemesterStart(html, semester) {
@@ -239,15 +252,18 @@ function parseSemesterStart(html, semester) {
 }
 
 // ---------- ICS ----------
-function vcalendar(eventLineArrays, name, { format = 'rfc' } = {}) {
+// 默认写带 TZID 的北京时间并附 VTIMEZONE；UTC 模式不写时区块。
+function vcalendar(eventLineArrays, name, { format = 'rfc', timeMode = 'tzid' } = {}) {
+  const tzLines = timeMode === 'tzid'
+    ? [`X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`, ...CALENDAR_TIMEZONE_LINES]
+    : [];
   const lines = format === 'rfc'
     ? [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//qzgw//CN',
       `X-WR-CALNAME:${icsEscapeRfc(name || CALENDAR_NAME)}`,
-      `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
-      ...CALENDAR_TIMEZONE_LINES,
+      ...tzLines,
       ...eventLineArrays.flat(),
       'END:VCALENDAR',
     ]
@@ -255,8 +271,7 @@ function vcalendar(eventLineArrays, name, { format = 'rfc' } = {}) {
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//qzgw//CN',
-      `X-WR-TIMEZONE:${CALENDAR_TIMEZONE}`,
-      ...CALENDAR_TIMEZONE_LINES,
+      ...tzLines,
       ...eventLineArrays.flat(),
       'END:VCALENDAR',
     ];
@@ -274,7 +289,7 @@ function calendarLabel(user, items) {
   return { className, calendarName: `${className || user.account} 课程表` };
 }
 
-function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, format, calendarHref, stamp }) {
+function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, description, format, timeMode = 'tzid', calendarHref, stamp }) {
   const esc = format === 'rfc' ? icsEscapeRfc : icsEscapeCompat;
   const splitList = value => String(value || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
   const categoryParts = (format === 'rfc'
@@ -287,9 +302,9 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'BEGIN:VEVENT',
       `UID:${hash}@qzgw`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
-      ...rdates.map(r => `RDATE;TZID=${CALENDAR_TIMEZONE}:${r}`),
+      timeProp('DTSTART', day.y, day.m, day.d, sh, sm, timeMode),
+      timeProp('DTEND', day.y, day.m, day.d, eh, em, timeMode),
+      ...rdates.map(r => timeProp('RDATE', r.y, r.m, r.d, sh, sm, timeMode)),
       `SUMMARY:${esc(item.name)}`,
       item.location ? `LOCATION:${esc(item.location)}` : '',
       description ? `DESCRIPTION:${esc(description)}` : '',
@@ -302,8 +317,8 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       `UID:${hash}@qzgw`,
       `DTSTAMP:${stamp}`,
       'SEQUENCE:3',
-      `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, sh, sm)}`,
-      `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(day.y, day.m, day.d, eh, em)}`,
+      timeProp('DTSTART', day.y, day.m, day.d, sh, sm, timeMode),
+      timeProp('DTEND', day.y, day.m, day.d, eh, em, timeMode),
       `SUMMARY:${esc(item.name)}`,
       item.location ? `LOCATION:${esc(item.location)}` : '',
       description ? `DESCRIPTION:${esc(description)}` : '',
@@ -311,7 +326,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
       'END:VEVENT',
     ].filter(Boolean);
 
-  const ics = vcalendar([eventLines], item.name, { format });
+  const ics = vcalendar([eventLines], item.name, { format, timeMode });
   return {
     hash,
     uid: `${hash}@qzgw`,
@@ -325,7 +340,7 @@ function buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color, descriptio
   };
 }
 
-function buildEvents(items, start, semester, calendarHref, expand, format) {
+function buildEvents(items, start, semester, calendarHref, expand, format, timeMode = 'tzid') {
   const times = periodTimes();
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [];
@@ -352,7 +367,7 @@ function buildEvents(items, start, semester, calendarHref, expand, format) {
         const hash = sha1(`${semester}|${courseKey}|${week}|${item.day}|${periodKey}`);
         if (seen.has(hash)) continue;
         seen.add(hash);
-        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, format, calendarHref, stamp }));
+        events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates: [], color: colors.get(item.name), description, format, timeMode, calendarHref, stamp }));
       }
       continue;
     }
@@ -362,11 +377,8 @@ function buildEvents(items, start, semester, calendarHref, expand, format) {
     if (seen.has(hash)) continue;
     seen.add(hash);
     const day = dateFor(start, weeks[0], item.day);
-    const rdates = weeks.slice(1).map(week => {
-      const d = dateFor(start, week, item.day);
-      return localStamp(d.y, d.m, d.d, sh, sm);
-    });
-    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, format: 'rfc', calendarHref, stamp }));
+    const rdates = weeks.slice(1).map(week => dateFor(start, week, item.day));
+    events.push(buildEvent({ item, hash, day, sh, sm, eh, em, rdates, color: colors.get(item.name), description, format: 'rfc', timeMode, calendarHref, stamp }));
   }
 
   events.sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
@@ -401,7 +413,7 @@ function nextDay({ y, m, d }) {
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
 }
 
-function buildExamEvents(exams, semester, calendarHref, format, stamp) {
+function buildExamEvents(exams, semester, calendarHref, format, stamp, timeMode = 'tzid') {
   const esc = format === 'rfc' ? icsEscapeRfc : icsEscapeCompat;
   const events = [];
   const seen = new Set();
@@ -432,8 +444,8 @@ function buildExamEvents(exams, semester, calendarHref, format, stamp) {
           `DTEND;VALUE=DATE:${ymd(nextDay(when.day))}`,
         ]
         : [
-          `DTSTART;TZID=${CALENDAR_TIMEZONE}:${localStamp(when.day.y, when.day.m, when.day.d, when.sh, when.sm)}`,
-          `DTEND;TZID=${CALENDAR_TIMEZONE}:${localStamp(when.day.y, when.day.m, when.day.d, when.eh, when.em)}`,
+          timeProp('DTSTART', when.day.y, when.day.m, when.day.d, when.sh, when.sm, timeMode),
+          timeProp('DTEND', when.day.y, when.day.m, when.day.d, when.eh, when.em, timeMode),
         ];
       const categories = ['考试', '课程表', course].filter(Boolean).map(esc).join(',');
       const eventLines = [
@@ -448,7 +460,7 @@ function buildExamEvents(exams, semester, calendarHref, format, stamp) {
         `CATEGORIES:${categories}`,
         'END:VEVENT',
       ].filter(Boolean);
-      const ics = vcalendar([eventLines], title, { format });
+      const ics = vcalendar([eventLines], title, { format, timeMode });
       events.push({
         hash,
         uid: `${hash}@qzgw`,
@@ -466,7 +478,7 @@ function buildExamEvents(exams, semester, calendarHref, format, stamp) {
   return events;
 }
 
-function buildCourses(events, homeHref) {  const groups = new Map();
+function buildCourses(events, homeHref, timeMode = 'tzid') {  const groups = new Map();
   for (const e of events) {
     const key = e.group || e.summary;
     if (!groups.has(key)) groups.set(key, []);
@@ -476,7 +488,7 @@ function buildCourses(events, homeHref) {  const groups = new Map();
     const slug = sha1(name).slice(0, 12);
     const prefix = `${homeHref}course-${slug}/`;
     const courseEvents = list.map(e => ({ ...e, href: `${prefix}${e.hash}.ics` }));
-    const ics = vcalendar(courseEvents.map(e => e.eventLines), name);
+    const ics = vcalendar(courseEvents.map(e => e.eventLines), name, { timeMode });
     return {
       name,
       slug,
@@ -495,7 +507,7 @@ function loadFixture() {
   return fixtureCache;
 }
 
-async function buildCalendar(user, expand, format = expand ? 'compat' : 'rfc') {
+async function buildCalendar(user, expand, format = expand ? 'compat' : 'rfc', timeMode = 'tzid') {
   const fixture = process.env.CALDAV_FIXTURE === '1' ? loadFixture() : null;
   const semesters = fixture ? [] : await jwxt.semesters(user);
   const semester = fixture?.semester
@@ -520,23 +532,23 @@ async function buildCalendar(user, expand, format = expand ? 'compat' : 'rfc') {
   const { className, calendarName } = calendarLabel(user, items);
   const stamp = utcStamp(start.y, start.m, start.d, '00', '00');
   const events = [
-    ...buildEvents(items, start, semester, paths.calendar, expand, format),
-    ...buildExamEvents(exams, semester, paths.calendar, format, stamp),
+    ...buildEvents(items, start, semester, paths.calendar, expand, format, timeMode),
+    ...buildExamEvents(exams, semester, paths.calendar, format, stamp, timeMode),
   ].sort((a, b) => a.start.localeCompare(b.start) || a.hash.localeCompare(b.hash));
-  const courses = buildCourses(events, paths.home);
-  const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName);
+  const courses = buildCourses(events, paths.home, timeMode);
+  const fullIcs = vcalendar(events.map(e => e.eventLines), calendarName, { timeMode });
   const etag = `"${sha256(fullIcs).slice(0, 32)}"`;
   const lastModified = new Date(Date.UTC(start.y, start.m - 1, start.d)).toUTCString();
 
   return { semester, start, events, courses, fullIcs, etag, lastModified, paths, className, calendarName };
 }
 
-async function calendarData(user, expand = false, format = expand ? 'compat' : 'rfc') {
-  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${format}`;
+async function calendarData(user, expand = false, format = expand ? 'compat' : 'rfc', timeMode = 'tzid') {
+  const key = `${user.id}:${user.caldav_semester || 'current'}:${expand ? 'perday' : 'rdate'}:${format}:${timeMode}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < config.caldavCacheMs) return hit.data;
   if (inflight.has(key)) return inflight.get(key);
-  const pending = buildCalendar(user, expand, format)
+  const pending = buildCalendar(user, expand, format, timeMode)
     .then(data => {
       cache.set(key, { at: Date.now(), data });
       return data;
@@ -552,7 +564,7 @@ export function warmCalendar(user) {
   const last = warmAttempts.get(user.id) || 0;
   if (Date.now() - last < 60_000) return Promise.resolve();
   warmAttempts.set(user.id, Date.now());
-  return calendarData(user, true, 'rfc').catch(e => {
+  return calendarData(user, true, 'rfc', 'tzid').catch(e => {
     console.warn('[caldav] 缓存预热失败:', e.message);
   });
 }
@@ -764,10 +776,11 @@ async function handlePropfind(req, res, user, path, url) {
   const account = user.account;
 
   const format = formatFor(req);
+  const timeMode = timeModeFor(req);
   const expand = format === 'compat';
   let cal = null;
   if (['calendar', 'event', 'feed'].includes(path.kind) || (path.kind === 'home' && deep)) {
-    cal = await calendarData(user, expand, format);
+    cal = await calendarData(user, expand, format, timeMode);
   }
   const calendarName = cal?.calendarName || CALENDAR_NAME;
   const course = path.course ? cal?.courses.find(c => c.slug === path.course) : null;
@@ -852,7 +865,7 @@ async function handleReport(req, res, user, path) {
   if (DEBUG) console.log(`[caldav] REPORT ${path.kind} ua=${JSON.stringify(req.headers['user-agent'] || '')}\n${body}`);
   const format = formatFor(req);
   const expand = format === 'compat';
-  const cal = await calendarData(user, expand, format);
+  const cal = await calendarData(user, expand, format, timeModeFor(req));
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
   const events = course ? course.events : cal.events;
@@ -900,7 +913,7 @@ async function handleGet(req, res, user, path) {
   const head = req.method === 'HEAD';
   const format = formatFor(req);
   const expand = format === 'compat';
-  const cal = await calendarData(user, expand, format);
+  const cal = await calendarData(user, expand, format, timeModeFor(req));
   const course = path.course ? cal.courses.find(c => c.slug === path.course) : null;
   if (path.course && !course) return send404(res);
 
@@ -926,7 +939,7 @@ async function sendFeed(req, res, user) {
   // .ics 订阅统一按每次上课展开：部分安卓日历只认第一个 DTSTART，
   // 不展开 RDATE，会导致后面的课“消失”。
   const format = formatFor(req);
-  const cal = await calendarData(user, true, format);
+  const cal = await calendarData(user, true, format, timeModeFor(req));
   const head = req.method === 'HEAD';
   if (etagMatches(req, cal.etag)) return sendNotModified(res, cal.etag);
   return sendIcs(res, cal.fullIcs, cal.etag, cal.lastModified, head);

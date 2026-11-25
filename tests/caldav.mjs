@@ -191,6 +191,12 @@ try {
     ok('If-None-Match 返回 304', cached.status === 304);
   }
 
+  // Honor 自带日历的 CalDAV 适配器会把 TZID/浮动时间当 UTC，必须单独写 UTC（...Z）。
+  const honor = await req(calHref, { headers: { 'User-Agent': 'Honor CalDAV Sync Adapter Version:20.0.10.310' } });
+  ok('Honor UA 返回 UTC 时间', honor.status === 200
+    && /DTSTART:\d{8}T\d{6}Z\r\n/.test(honor.text)
+    && !honor.text.includes('TZID'));
+
   // 订阅 URL：token 在路径里，不需要 Basic 认证（Apple 日历等）。
   const subUrl = `${origin}/caldav/feed/${encodeURIComponent(PASS)}.ics`;
   const sub = await fetchWithTimeout(subUrl);
