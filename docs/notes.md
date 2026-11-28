@@ -183,7 +183,7 @@ const res = await fetch(BASE + '/Logon.do?method=logon', {
 
 凭据放在项目根目录 `.env`（模板见 `.env.example`，已 gitignore），脚本会自动读取；也可用命令行参数覆盖。
 
-登录后的接口清单见 **`docs/API.md`**，可直接调用的客户端是 **`server/jwxt/api.mjs`**（`node server/jwxt/api.mjs` 会打印课程表/考试/教材/执行计划摘要）。
+登录后的接口清单见 **`docs/api.md`**，可直接调用的客户端是 **`server/jwxt/api.mjs`**（`node server/jwxt/api.mjs` 会打印课程表/考试/教材/执行计划摘要）。
 
 - `server/jwxt/login.mjs` —— 可复用的登录模块（`login()` 返回已认证的 Cookie 罐）
 - `server/jwxt/api.mjs` —— 登录后的数据接口封装（课程表/成绩/考试/教材/学籍/公告等）

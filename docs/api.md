@@ -1,7 +1,7 @@
 # jwglxt 可用接口清单（登录后 · 学生端）
 
 探测日期 2026-11-21，账号角色：2026 级本科（软件工程）。全部为只读 GET/POST 验证。
-登录方式见 `NOTES.md`。可用客户端：`server/jwxt/api.mjs`。
+登录方式见 `notes.md`。可用客户端：`server/jwxt/api.mjs`。
 
 ## 0. 通用约定
 

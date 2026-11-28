@@ -4,14 +4,14 @@
 
 ## 文档
 
-- [`docs/NOTES.md`](docs/NOTES.md) —— 登录流程、`scode/sxh` 编码、`ticqzket` 实测
-- [`docs/API.md`](docs/API.md) —— 登录后可用接口清单、参数、返回结构
-- [`docs/SERVER.md`](docs/SERVER.md) —— OAuth2 网关的部署、管理 API、数据 API
+- [`docs/notes.md`](docs/notes.md) —— 登录流程、`scode/sxh` 编码、`ticqzket` 实测
+- [`docs/api.md`](docs/api.md) —— 登录后可用接口清单、参数、返回结构
+- [`docs/server.md`](docs/server.md) —— OAuth2 网关的部署、管理 API、数据 API
 - [`openapi.json`](openapi.json) —— OpenAPI 3.0 描述（`npm run openapi` 从路由元数据生成，`npm run openapi:check` 校验是否过期；服务端 `GET /openapi.json`）
 - `/docs` —— 在线 API 文档（Swagger UI，从 `/openapi.json` 渲染；前端资源走 cdnjs）。支持授权码 + PKCE 登录，客户端 redirect URI 用 `http://<host>:8787/docs/oauth2-redirect.html`。
 - `/` —— 账号自助页：登录后生成/撤销自己的 CalDAV token / .ics 订阅链接。
 - `/info` —— 服务信息 JSON。
-- [`docs/CALDAV.md`](docs/CALDAV.md) —— 只读 CalDAV：把课程表添加到系统日历
+- [`docs/caldav.md`](docs/caldav.md) —— 只读 CalDAV：把课程表添加到系统日历
 - [`client/README.md`](client/README.md) —— 客户端：PKCE、自动刷新、数据 API 封装
 
 ## 目录
@@ -39,13 +39,13 @@ node scripts/admin.mjs add-user --account <学号> --password <教务密码> --s
 npm start
 ```
 
-- 服务端不再从 `.env` 导入用户；用户通过 CLI 或 `POST /admin/users` 创建。未注册学号首次用教务密码登录网页或连接 CalDAV / `.ics` 订阅时会自动建号，见 [`docs/CALDAV.md`](docs/CALDAV.md)。
+- 服务端不再从 `.env` 导入用户；用户通过 CLI 或 `POST /admin/users` 创建。未注册学号首次用教务密码登录网页或连接 CalDAV / `.ics` 订阅时会自动建号，见 [`docs/caldav.md`](docs/caldav.md)。
 - 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
 - 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
 - 给用户签发 CalDAV token：`node scripts/admin.mjs add-caldav-token <user_id> --label phone`。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/qzgw.db`。
 
-详细用法见 [`docs/SERVER.md`](docs/SERVER.md) 和 [`docs/CALDAV.md`](docs/CALDAV.md)。
+详细用法见 [`docs/server.md`](docs/server.md) 和 [`docs/caldav.md`](docs/caldav.md)。
 
 ## 开发
 

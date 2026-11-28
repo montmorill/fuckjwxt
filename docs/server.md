@@ -13,7 +13,7 @@
   - Revocation、Authorization Server Metadata
 - 访问令牌 1 小时、刷新令牌 30 天；令牌只存 SHA-256 哈希。
 - 教务会话缓存 15 分钟；过期或请求失败自动重新登录。
-- **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token；未注册学号首次用教务密码认证（CalDAV / 订阅 / 网页登录）会自动建号，见 [`CALDAV.md`](CALDAV.md)。
+- **只读 CalDAV**：每个用户独立学号 + 多个可撤销 app token；未注册学号首次用教务密码认证（CalDAV / 订阅 / 网页登录）会自动建号，见 [`caldav.md`](caldav.md)。
 - 管理 API + 本地 CLI。
 - **账号自助页** 根路径 `/`：用户登录后可以自己生成/撤销 CalDAV 订阅链接和 token，不需要 OAuth，也不需要管理员代签 token。
 - 客户端：`client/index.mjs`（浏览器/Node，PKCE、自动刷新、API 封装）。
@@ -35,7 +35,7 @@ node scripts/admin.mjs add-user `
 npm start
 ```
 
-- 服务端**不再从 `.env` 导入用户**；用户通过 CLI 或 `POST /admin/users` 创建，或在首次认证时自动建号（CalDAV、`.ics` 订阅、网页 `/login`，学号 + 教务密码校验通过后建号，见 [`CALDAV.md`](CALDAV.md)）。
+- 服务端**不再从 `.env` 导入用户**；用户通过 CLI 或 `POST /admin/users` 创建，或在首次认证时自动建号（CalDAV、`.ics` 订阅、网页 `/login`，学号 + 教务密码校验通过后建号，见 [`caldav.md`](caldav.md)）。
 - 登录名就是学号；不设服务密码时，`/login` 直接校验教务密码（CalDAV 也支持教务密码）。
 - 打开 `http://localhost:8787/login`，用学号 + 密码（服务密码；未设置时用教务密码）登录。
 - 数据库 schema 变更未做迁移；需要重建时删除 `data/qzgw.db`。
